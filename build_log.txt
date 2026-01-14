@@ -1,0 +1,166 @@
+
+> sales-manager@1.0.0 build
+> tsc && vite build && electron-builder
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m‚úì[39m 12406 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m    0.48 kB[22m[1m[22m[2m ‚îÇ gzip:   0.31 kB[22m
+[2mdist/[22m[35massets/index-BPvUFfQp.css  [39m[1m[2m   15.92 kB[22m[1m[22m[2m ‚îÇ gzip:   3.85 kB[22m
+[2mdist/[22m[36massets/index-DrOjApWF.js   [39m[1m[33m1,021.91 kB[39m[22m[2m ‚îÇ gzip: 310.03 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m‚úì built in 19.69s[39m
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m‚úì[39m 2 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist-electron/[22m[36mmain.js  [39m[1m[2m10.98 kB[22m[1m[22m[2m ‚îÇ gzip: 3.05 kB[22m
+[32m‚úì built in 60ms[39m
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m‚úì[39m 1 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist-electron/[22m[36mpreload.mjs  [39m[1m[2m0.35 kB[22m[1m[22m[2m ‚îÇ gzip: 0.18 kB[22m
+[32m‚úì built in 13ms[39m
+  ‚Ä¢ electron-builder  version=24.13.3 os=10.0.26200
+  ‚Ä¢ loaded configuration  file=C:\Users\noway\.gemini\antigravity\scratch\sales_manager\electron-builder.json5
+  ‚Ä¢ description is missed in the package.json  appPackageFile=C:\Users\noway\.gemini\antigravity\scratch\sales_manager\package.json
+  ‚Ä¢ author is missed in the package.json  appPackageFile=C:\Users\noway\.gemini\antigravity\scratch\sales_manager\package.json
+  ‚Ä¢ packaging       platform=win32 arch=x64 electron=30.5.1 appOutDir=release\1.0.0\win-unpacked
+  ‚Ä¢ default Electron icon is used  reason=application icon is not set
+  ‚Ä¢ downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  ‚Ä¢ downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=537ms
+  ‚®Ø cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\266337451.7z
+    --
+    Path = C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\266337451.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\266337451\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\266337451\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\noway\.gemini\antigravity\scratch\sales_manager\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\266337451.7z' '-oC:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\266337451'
+                    workingDir=C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign
+  ‚Ä¢ Above command failed, retrying 3 more times
+  ‚Ä¢ downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  ‚Ä¢ downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=390ms
+  ‚®Ø cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\298006303.7z
+    --
+    Path = C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\298006303.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\298006303\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\298006303\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\noway\.gemini\antigravity\scratch\sales_manager\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\298006303.7z' '-oC:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\298006303'
+                    workingDir=C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign
+  ‚Ä¢ Above command failed, retrying 2 more times
+  ‚Ä¢ downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  ‚Ä¢ downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=422ms
+  ‚®Ø cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\945377619.7z
+    --
+    Path = C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\945377619.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\945377619\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\945377619\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\noway\.gemini\antigravity\scratch\sales_manager\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\945377619.7z' '-oC:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\945377619'
+                    workingDir=C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign
+  ‚Ä¢ Above command failed, retrying 1 more times
+  ‚Ä¢ downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  ‚Ä¢ downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=524ms
+  ‚®Ø cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\119457943.7z
+    --
+    Path = C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\119457943.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\119457943\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : ÉNÉâÉCÉAÉìÉgÇÕóvãÅÇ≥ÇÍÇΩì¡å†Çï€óLÇµÇƒÇ¢Ç‹ÇπÇÒÅB : C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\119457943\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\noway\.gemini\antigravity\scratch\sales_manager\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\119457943.7z' '-oC:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign\119457943'
+                    workingDir=C:\Users\noway\AppData\Local\electron-builder\Cache\winCodeSign
+  ‚Ä¢ Above command failed, retrying 0 more times

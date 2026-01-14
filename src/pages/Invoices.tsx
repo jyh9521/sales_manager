@@ -8,7 +8,7 @@ import { Unit, unitService } from '../services/units';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Button, TextField, IconButton, MenuItem, Box, Typography,
-    Grid, InputAdornment, Autocomplete, Dialog, Checkbox, Select, Switch
+    Grid, InputAdornment, Autocomplete, Dialog, Checkbox, Switch
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -726,7 +726,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 fullWidth
                                 label={t('invoices_status', 'Status')}
                                 value={manualStatus}
-                                onChange={(e) => setManualStatus(e.target.value as any)}
+                                onChange={(e: any) => setManualStatus(e.target.value)}
                                 variant="outlined"
                             >
                                 <MenuItem value="Unpaid">{t('status_unpaid', 'Unsent')}</MenuItem>
@@ -769,7 +769,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             label={t('invoices_date', 'Date')}
                             InputLabelProps={{ shrink: true }}
                             value={invoiceDate}
-                            onChange={e => setInvoiceDate(e.target.value)}
+                            onChange={(e: any) => setInvoiceDate(e.target.value)}
                             variant="outlined"
                         />
                     </Grid>
@@ -780,7 +780,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             label={t('invoices_due_date', 'Due Date')}
                             InputLabelProps={{ shrink: true }}
                             value={dueDate}
-                            onChange={e => setDueDate(e.target.value)}
+                            onChange={(e: any) => setDueDate(e.target.value)}
                             variant="outlined"
                         />
                     </Grid>
@@ -813,7 +813,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                                 variant="standard"
                                                 InputProps={{ disableUnderline: true }}
                                                 value={item.ItemDate}
-                                                onChange={e => updateItem(idx, 'ItemDate', e.target.value)}
+                                                onChange={(e: any) => updateItem(idx, 'ItemDate', e.target.value)}
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -823,7 +823,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                                 placeholder={t('products_name', 'Product Name')}
                                                 InputProps={{ disableUnderline: true }}
                                                 value={item.ProductName}
-                                                onChange={e => updateItem(idx, 'ProductName', e.target.value)}
+                                                onChange={(e: any) => updateItem(idx, 'ProductName', e.target.value)}
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -834,7 +834,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                                 InputProps={{ disableUnderline: true }}
                                                 inputProps={{ style: { textAlign: 'right' } }}
                                                 value={item.UnitPrice}
-                                                onChange={e => updateItem(idx, 'UnitPrice', Number(e.target.value))}
+                                                onChange={(e: any) => updateItem(idx, 'UnitPrice', Number(e.target.value))}
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -845,7 +845,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                                 InputProps={{ disableUnderline: true }}
                                                 inputProps={{ style: { textAlign: 'center', fontWeight: 'bold' } }}
                                                 value={item.Quantity}
-                                                onChange={e => updateItem(idx, 'Quantity', Number(e.target.value))}
+                                                onChange={(e: any) => updateItem(idx, 'Quantity', Number(e.target.value))}
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -874,7 +874,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                                 placeholder={t('invoices_remarks', 'Memo')}
                                                 InputProps={{ disableUnderline: true }}
                                                 value={item.Remarks || ''}
-                                                onChange={e => updateItem(idx, 'Remarks', e.target.value)}
+                                                onChange={(e: any) => updateItem(idx, 'Remarks', e.target.value)}
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -1079,7 +1079,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
                                     <Checkbox
                                         checked={selectedInvoiceIds.has(invoice.ID)}
-                                        onChange={(e) => {
+                                        onChange={(e: any) => {
                                             const newSet = new Set(selectedInvoiceIds);
                                             if (e.target.checked) newSet.add(invoice.ID);
                                             else newSet.delete(invoice.ID);
@@ -1110,7 +1110,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                         <Switch
                                             size="small"
                                             checked={invoice.Status === 'Sent'}
-                                            onChange={async (e) => {
+                                            onChange={async (e: any) => {
                                                 const newStatus = e.target.checked ? 'Sent' : 'Unpaid';
                                                 const updated = { ...invoice, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' };
                                                 await invoiceService.update(updated);
@@ -1153,102 +1153,104 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             </TableContainer>
 
             {/* Invoice Preview Modal */}
-            <Dialog
-                fullScreen
-                open={!!viewInvoice}
-                onClose={() => setViewInvoice(null)}
-                PaperProps={{ sx: { bgcolor: 'background.default' } }}
-            >
-                <Box sx={{ p: 2, bgcolor: 'white', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="print:hidden">
-                    <Typography variant="h6">{t('invoices_preview_title', 'Invoice Preview')}</Typography>
-                    <Box>
-                        <Button onClick={() => window.print()} startIcon={<PrintIcon />} sx={{ mr: 1 }} variant="contained" color="primary">
-                            {t('invoices_btn_print', 'Print')}
-                        </Button>
-                        <Button onClick={() => setViewInvoice(null)} variant="outlined" color="secondary">
-                            {t('invoices_btn_close', 'Close')}
-                        </Button>
-                    </Box>
-                </Box>
-
-                <Box sx={{ p: 8, maxWidth: '210mm', mx: 'auto', bgcolor: 'white', minHeight: '297mm', my: 2, boxShadow: 3 }} className="print:shadow-none print:m-0 print:w-full print:p-0">
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 6 }}>
-                        <Typography variant="h3" fontWeight="bold" color="primary" sx={{ letterSpacing: 2 }}>{t('invoices_title', 'INVOICE')}</Typography>
-                        <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="body1"><strong>{t('invoices_date', 'Date')}:</strong> {viewInvoice && new Date(viewInvoice.InvoiceDate).toLocaleDateString()}</Typography>
-                            <Typography variant="body1"><strong>ID:</strong> #{viewInvoice && String(viewInvoice.ID).padStart(8, '0')}</Typography>
-                            {/* Always render, check validity */}
-                            {(viewInvoice && viewInvoice.DueDate) && (
-                                <Typography variant="body1" color="error"><strong>{t('invoices_due_date', 'Due Date')}:</strong> {new Date(viewInvoice.DueDate).toLocaleDateString()}</Typography>
-                            )}
+            {viewInvoice && (
+                <Dialog
+                    fullScreen
+                    open={true}
+                    onClose={() => setViewInvoice(null)}
+                    PaperProps={{ sx: { bgcolor: 'background.default' } }}
+                >
+                    <Box sx={{ p: 2, bgcolor: 'white', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="print:hidden">
+                        <Typography variant="h6">{t('invoices_preview_title', 'Invoice Preview')}</Typography>
+                        <Box>
+                            <Button onClick={() => window.print()} startIcon={<PrintIcon />} sx={{ mr: 1 }} variant="contained" color="primary">
+                                {t('invoices_btn_print', 'Print')}
+                            </Button>
+                            <Button onClick={() => setViewInvoice(null)} variant="outlined" color="secondary">
+                                {t('invoices_btn_close', 'Close')}
+                            </Button>
                         </Box>
                     </Box>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 8, alignItems: 'flex-start' }}>
-                        <Box sx={{ width: '50%' }}>
-                            {viewInvoice && (
-                                <Typography variant="h5" fontWeight="bold" sx={{ borderBottom: 2, borderColor: 'divider', pb: 1, mb: 2, display: 'inline-block' }}>
-                                    {clients.find(c => c.ID === viewInvoice.ClientID)?.Name} <span style={{ fontSize: '0.6em', fontWeight: 'normal' }}>{t('common_honorific', '御中')}</span>
-                                </Typography>
-                            )}
-                            <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{clients.find(c => c.ID === viewInvoice?.ClientID)?.Address}</Typography>
+                    <Box sx={{ p: 8, maxWidth: '210mm', mx: 'auto', bgcolor: 'white', minHeight: '297mm', my: 2, boxShadow: 3 }} className="print:shadow-none print:m-0 print:w-full print:p-0">
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 6 }}>
+                            <Typography variant="h3" fontWeight="bold" color="primary" sx={{ letterSpacing: 2 }}>{t('invoices_title', 'INVOICE')}</Typography>
+                            <Box sx={{ textAlign: 'right' }}>
+                                <Typography variant="body1"><strong>{t('invoices_date', 'Date')}:</strong> {viewInvoice ? new Date((viewInvoice as any).InvoiceDate).toLocaleDateString() : ''}</Typography>
+                                <Typography variant="body1"><strong>ID:</strong> #{viewInvoice ? String((viewInvoice as any).ID).padStart(8, '0') : ''}</Typography>
+                                {/* Always render, check validity */}
+                                {(viewInvoice as any)?.DueDate ? (
+                                    <Typography variant="body1" color="error"><strong>{t('invoices_due_date', 'Due Date')}:</strong> {new Date((viewInvoice as any).DueDate).toLocaleDateString()}</Typography>
+                                ) : null}
+                            </Box>
                         </Box>
 
-                        <Box sx={{ width: '40%', textAlign: 'right' }}>
-                            {settings.Logo && (
-                                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                                    <img src={settings.Logo} alt="Logo" style={{ height: 80, objectFit: 'contain' }} />
-                                </Box>
-                            )}
-                            <Typography variant="h6" fontWeight="bold">{settings.CompanyName}</Typography>
-                            <Typography variant="body2">{settings.Address}</Typography>
-                            <Typography variant="body2">{settings.Phone}</Typography>
-                            {settings.RegistrationNumber && <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>{t('settings_registration_number', 'Reg No.')}: {settings.RegistrationNumber}</Typography>}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 8, alignItems: 'flex-start' }}>
+                            <Box sx={{ width: '50%' }}>
+                                {viewInvoice && (
+                                    <Typography variant="h5" fontWeight="bold" sx={{ borderBottom: 2, borderColor: 'divider', pb: 1, mb: 2, display: 'inline-block' }}>
+                                        {clients.find(c => c.ID === (viewInvoice as any).ClientID)?.Name} <span style={{ fontSize: '0.6em', fontWeight: 'normal' }}>{t('common_honorific', '御中')}</span>
+                                    </Typography>
+                                )}
+                                <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{clients.find(c => c.ID === (viewInvoice as any)?.ClientID)?.Address}</Typography>
+                            </Box>
+
+                            <Box sx={{ width: '40%', textAlign: 'right' }}>
+                                {settings.Logo && (
+                                    <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                                        <img src={settings.Logo} alt="Logo" style={{ height: 80, objectFit: 'contain' }} />
+                                    </Box>
+                                )}
+                                <Typography variant="h6" fontWeight="bold">{settings.CompanyName}</Typography>
+                                <Typography variant="body2">{settings.Address}</Typography>
+                                <Typography variant="body2">{settings.Phone}</Typography>
+                                {settings.RegistrationNumber && <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>{t('settings_registration_number', 'Reg No.')}: {settings.RegistrationNumber}</Typography>}
+                            </Box>
                         </Box>
-                    </Box>
 
-                    <Box sx={{ mb: 6, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                        <Typography variant="h4" align="center" fontWeight="bold">
-                            {t('invoices_total_amount', 'Total Amount')}: ¥{viewInvoice?.TotalAmount.toLocaleString()}
-                        </Typography>
-                    </Box>
+                        <Box sx={{ mb: 6, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="h4" align="center" fontWeight="bold">
+                                {t('invoices_total_amount', 'Total Amount')}: ¥{(viewInvoice as any)?.TotalAmount.toLocaleString()}
+                            </Typography>
+                        </Box>
 
-                    <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ mb: 4 }}>
-                        <Table size="medium">
-                            <TableHead sx={{ bgcolor: 'primary.main' }}>
-                                <TableRow>
-                                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t('products_name', 'Item')}</TableCell>
-                                    <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_unit_price', 'Price')}</TableCell>
-                                    <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_quantity', 'Qty')}</TableCell>
-                                    <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_total', 'Total')}</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {viewInvoice?.Items.map((item, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell>{item.ItemName}</TableCell>
-                                        <TableCell align="right">¥{item.UnitPrice.toLocaleString()}</TableCell>
-                                        <TableCell align="right">{item.Quantity}</TableCell>
-                                        <TableCell align="right">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</TableCell>
+                        <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ mb: 4 }}>
+                            <Table size="medium">
+                                <TableHead sx={{ bgcolor: 'primary.main' }}>
+                                    <TableRow>
+                                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t('products_name', 'Item')}</TableCell>
+                                        <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_unit_price', 'Price')}</TableCell>
+                                        <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_quantity', 'Qty')}</TableCell>
+                                        <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_total', 'Total')}</TableCell>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                </TableHead>
+                                <TableBody>
+                                    {(viewInvoice as any)?.Items.map((item: any, i: number) => (
+                                        <TableRow key={i}>
+                                            <TableCell>{item.ProductName || item.Project || '-'}</TableCell>
+                                            <TableCell align="right">¥{item.UnitPrice.toLocaleString()}</TableCell>
+                                            <TableCell align="right">{item.Quantity}</TableCell>
+                                            <TableCell align="right">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
 
-                    <Box sx={{ mt: 8, p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 2 }}>
-                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, borderBottom: 1, pb: 0.5, borderColor: 'grey.300' }}>{t('settings_bank_info', 'Bank Account Info')}</Typography>
-                        <Grid container spacing={2}>
-                            <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_bank_name', 'Bank')}</Typography></Grid>
-                            <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.BankName} {settings.BranchName}</Typography></Grid>
-                            <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_number', 'Account')}</Typography></Grid>
-                            <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountType} {settings.AccountNumber}</Typography></Grid>
-                            <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_holder', 'Holder')}</Typography></Grid>
-                            <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountHolder}</Typography></Grid>
-                        </Grid>
+                        <Box sx={{ mt: 8, p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 2 }}>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, borderBottom: 1, pb: 0.5, borderColor: 'grey.300' }}>{t('settings_bank_info', 'Bank Account Info')}</Typography>
+                            <Grid container spacing={2}>
+                                <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_bank_name', 'Bank')}</Typography></Grid>
+                                <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.BankName} {settings.BranchName}</Typography></Grid>
+                                <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_number', 'Account')}</Typography></Grid>
+                                <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountType} {settings.AccountNumber}</Typography></Grid>
+                                <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_holder', 'Holder')}</Typography></Grid>
+                                <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountHolder}</Typography></Grid>
+                            </Grid>
+                        </Box>
                     </Box>
-                </Box>
-            </Dialog>
+                </Dialog>
+            )}
 
             <ConfirmDialog
                 open={confirmDialog.open}

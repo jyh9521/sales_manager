@@ -1,44 +1,37 @@
-import { app, BrowserWindow, ipcMain } from "electron";
-import ADODB from "node-adodb";
-import path from "path";
-import fs from "fs";
-import { execSync } from "child_process";
-import { fileURLToPath } from "node:url";
-import path$1 from "node:path";
-const isPackaged = app.isPackaged;
-const DB_PATH = isPackaged ? path.join(app.getPath("userData"), "sales.accdb") : path.join(process.cwd(), "sales.accdb");
-console.log("Database Path:", DB_PATH);
-const connection = ADODB.open(`Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${DB_PATH};Persist Security Info=False;`, true);
-async function initDB() {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(DB_PATH)) {
+import { app as l, BrowserWindow as R, ipcMain as E } from "electron";
+import w from "node-adodb";
+import A from "path";
+import D from "fs";
+import { execSync as h } from "child_process";
+import { fileURLToPath as U } from "node:url";
+import i from "node:path";
+const O = l.isPackaged, u = O ? A.join(l.getPath("userData"), "sales.accdb") : A.join(process.cwd(), "sales.accdb");
+console.log("Database Path:", u);
+const a = w.open(`Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${u};Persist Security Info=False;`, !0);
+async function S() {
+  const c = A.dirname(u);
+  if (D.existsSync(c) || D.mkdirSync(c, { recursive: !0 }), D.existsSync(u))
+    console.log("Database already exists.");
+  else {
     console.log("Creating new Access database...");
     try {
-      const cmd = `$catalog = New-Object -ComObject ADOX.Catalog; $catalog.Create('Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${DB_PATH}');`;
-      execSync(`powershell -Command "${cmd}"`);
-      console.log("Database file created successfully.");
-    } catch (error) {
-      console.error("Failed to create database:", error);
-      throw error;
+      const e = `$catalog = New-Object -ComObject ADOX.Catalog; $catalog.Create('Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${u}');`;
+      h(`powershell -Command "${e}"`), console.log("Database file created successfully.");
+    } catch (e) {
+      throw console.error("Failed to create database:", e), e;
     }
-  } else {
-    console.log("Database already exists.");
   }
-  await createSchema();
+  await y();
 }
-async function createSchema() {
+async function y() {
   try {
-    await connection.execute(`
+    await a.execute(`
       CREATE TABLE Settings (
         SettingKey VARCHAR(255) PRIMARY KEY,
         SettingValue MEMO
       )
     `).catch(() => {
-    });
-    await connection.execute(`
+    }), await a.execute(`
       CREATE TABLE Clients (
         ID AUTOINCREMENT PRIMARY KEY,
         Name VARCHAR(100),
@@ -47,22 +40,19 @@ async function createSchema() {
         IsActive BIT DEFAULT 1
       )
     `).catch(() => {
-    });
-    await connection.execute(`
+    }), await a.execute(`
       CREATE TABLE Projects (
         ID AUTOINCREMENT PRIMARY KEY,
         Name VARCHAR(255) UNIQUE
       )
     `).catch(() => {
-    });
-    await connection.execute(`
+    }), await a.execute(`
       CREATE TABLE Units (
         ID AUTOINCREMENT PRIMARY KEY,
         Name VARCHAR(100) UNIQUE
       )
     `).catch(() => {
-    });
-    await connection.execute(`
+    }), await a.execute(`
       CREATE TABLE Products (
         ID AUTOINCREMENT PRIMARY KEY,
         Code VARCHAR(50),
@@ -78,8 +68,7 @@ async function createSchema() {
         IsActive BIT DEFAULT 1
       )
     `).catch(() => {
-    });
-    await connection.execute(`
+    }), await a.execute(`
       CREATE TABLE InvoiceItems (
         ID AUTOINCREMENT PRIMARY KEY,
         InvoiceID INT,
@@ -95,8 +84,7 @@ async function createSchema() {
         FOREIGN KEY (InvoiceID) REFERENCES Invoices(ID) ON DELETE CASCADE
       )
     `).catch(() => {
-    });
-    await connection.execute(`
+    }), await a.execute(`
       CREATE TABLE Invoices (
         ID AUTOINCREMENT PRIMARY KEY,
         ClientID LONG,
@@ -109,258 +97,189 @@ async function createSchema() {
     `).catch(() => {
     });
     try {
-      await connection.execute(`ALTER TABLE Invoices ADD COLUMN Status VARCHAR(50) DEFAULT 'Unpaid'`);
-    } catch (e) {
+      await a.execute("ALTER TABLE Invoices ADD COLUMN Status VARCHAR(50) DEFAULT 'Unpaid'");
+    } catch {
     }
     try {
-      await connection.execute(`ALTER TABLE Invoices ADD COLUMN DueDate DATETIME`);
-    } catch (e) {
+      await a.execute("ALTER TABLE Invoices ADD COLUMN DueDate DATETIME");
+    } catch {
     }
     try {
-      await connection.execute(`ALTER TABLE Invoices ADD COLUMN ExampleField MEMO`);
-    } catch (e) {
+      await a.execute("ALTER TABLE Invoices ADD COLUMN ExampleField MEMO");
+    } catch {
     }
     try {
-      await connection.execute(`ALTER TABLE Products ADD COLUMN Project VARCHAR(255)`);
-    } catch (e) {
+      await a.execute("ALTER TABLE Products ADD COLUMN Project VARCHAR(255)");
+    } catch {
     }
     try {
-      await connection.execute("ALTER TABLE InvoiceItems ADD COLUMN Remarks MEMO");
-    } catch (e) {
+      await a.execute("ALTER TABLE InvoiceItems ADD COLUMN Remarks MEMO");
+    } catch {
     }
     try {
-      await connection.execute("ALTER TABLE Products ADD COLUMN TaxRate INT DEFAULT 10");
-    } catch (e) {
+      await a.execute("ALTER TABLE Products ADD COLUMN TaxRate INT DEFAULT 10");
+    } catch {
     }
     try {
-      await connection.execute("ALTER TABLE InvoiceItems ADD COLUMN TaxRate INT DEFAULT 10");
-    } catch (e) {
+      await a.execute("ALTER TABLE InvoiceItems ADD COLUMN TaxRate INT DEFAULT 10");
+    } catch {
     }
     try {
-      await connection.execute(`ALTER TABLE Products ADD COLUMN IsActive BIT DEFAULT 1`);
-      await connection.execute(`UPDATE Products SET IsActive = 1 WHERE IsActive IS NULL`);
-    } catch (e) {
+      await a.execute("ALTER TABLE Products ADD COLUMN IsActive BIT DEFAULT 1"), await a.execute("UPDATE Products SET IsActive = 1 WHERE IsActive IS NULL");
+    } catch {
     }
     try {
-      await connection.execute(`
+      await a.execute(`
             INSERT INTO Projects (Name) 
             SELECT DISTINCT Project FROM Products 
             WHERE Project IS NOT NULL AND Project <> ''
         `);
-    } catch (e) {
+    } catch {
     }
     console.log("Database schema initialized.");
-  } catch (error) {
-    console.error("Error creating schema:", error);
+  } catch (c) {
+    console.error("Error creating schema:", c);
   }
 }
-const __dirname$1 = path$1.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path$1.join(__dirname$1, "..");
-const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path$1.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path$1.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$1.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-let win;
-function createWindow() {
-  win = new BrowserWindow({
-    icon: path$1.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+const m = i.dirname(U(import.meta.url));
+process.env.APP_ROOT = i.join(m, "..");
+const T = process.env.VITE_DEV_SERVER_URL, b = i.join(process.env.APP_ROOT, "dist-electron"), L = i.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = T ? i.join(process.env.APP_ROOT, "public") : L;
+let n;
+function C() {
+  n = new R({
+    icon: i.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
-      preload: path$1.join(__dirname$1, "preload.mjs")
+      preload: i.join(m, "preload.mjs")
     }
-  });
-  win.webContents.on("did-finish-load", () => {
-    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  });
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(path$1.join(RENDERER_DIST, "index.html"));
-  }
+  }), n.webContents.on("did-finish-load", () => {
+    n == null || n.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  }), T ? n.loadURL(T) : n.loadFile(i.join(L, "index.html"));
 }
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-    win = null;
-  }
+l.on("window-all-closed", () => {
+  process.platform !== "darwin" && (l.quit(), n = null);
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+l.on("activate", () => {
+  R.getAllWindows().length === 0 && C();
 });
-app.whenReady().then(async () => {
+l.whenReady().then(async () => {
   try {
-    await initDB();
-    console.log("Database initialized successfully");
-  } catch (e) {
-    console.error("Database initialization failed:", e);
+    await S(), console.log("Database initialized successfully");
+  } catch (c) {
+    console.error("Database initialization failed:", c);
   }
-  createWindow();
-  ipcMain.handle("db-query", async (_event, sql) => {
-    console.log("SQL Query:", sql);
+  C(), E.handle("db-query", async (c, e) => {
+    console.log("SQL Query:", e);
     try {
-      const result = await connection.query(sql);
-      return { success: true, data: result };
-    } catch (e) {
-      console.error("SQL Error:", e);
-      return { success: false, error: e.message || String(e) };
+      return { success: !0, data: await a.query(e) };
+    } catch (t) {
+      return console.error("SQL Error:", t), { success: !1, error: t.message || String(t) };
     }
-  });
-  ipcMain.handle("db-execute", async (_event, sql) => {
-    console.log("SQL Execute:", sql);
+  }), E.handle("db-execute", async (c, e) => {
+    console.log("SQL Execute:", e);
     try {
-      const result = await connection.execute(sql);
-      return { success: true, data: result };
-    } catch (e) {
-      console.error("SQL Error:", e);
-      return { success: false, error: e.message || String(e) };
+      return { success: !0, data: await a.execute(e) };
+    } catch (t) {
+      return console.error("SQL Error:", t), { success: !1, error: t.message || String(t) };
     }
-  });
-  ipcMain.handle("units-getAll", async () => {
+  }), E.handle("units-getAll", async () => {
     try {
-      return await connection.query("SELECT * FROM Units ORDER BY Name ASC");
-    } catch (error) {
-      console.error(error);
-      return [];
+      return await a.query("SELECT * FROM Units ORDER BY Name ASC");
+    } catch (c) {
+      return console.error(c), [];
     }
-  });
-  ipcMain.handle("units-add", async (_event, name) => {
+  }), E.handle("units-add", async (c, e) => {
     try {
-      await connection.execute(`INSERT INTO Units (Name) VALUES ('${name}')`);
-      return { success: true };
-    } catch (error) {
-      console.error(error);
-      throw error;
+      return await a.execute(`INSERT INTO Units (Name) VALUES ('${e}')`), { success: !0 };
+    } catch (t) {
+      throw console.error(t), t;
     }
-  });
-  ipcMain.handle("units-delete", async (_event, id) => {
+  }), E.handle("units-delete", async (c, e) => {
     try {
-      await connection.execute(`DELETE FROM Units WHERE ID = ${id}`);
-      return { success: true };
-    } catch (error) {
-      console.error(error);
-      throw error;
+      return await a.execute(`DELETE FROM Units WHERE ID = ${e}`), { success: !0 };
+    } catch (t) {
+      throw console.error(t), t;
     }
-  });
-  ipcMain.handle("units-rename", async (_event, id, newName) => {
+  }), E.handle("units-rename", async (c, e, t) => {
     try {
-      await connection.execute(`UPDATE Units SET Name = '${newName}' WHERE ID = ${id}`);
-      return { success: true };
-    } catch (error) {
-      console.error(error);
-      throw error;
+      return await a.execute(`UPDATE Units SET Name = '${t}' WHERE ID = ${e}`), { success: !0 };
+    } catch (r) {
+      throw console.error(r), r;
     }
-  });
-  ipcMain.handle("invoices-getAll", async () => {
-    const sql = `
+  }), E.handle("invoices-getAll", async () => await a.query(`
             SELECT Invoices.*, Clients.Name as ClientName
             FROM Invoices
             LEFT JOIN Clients ON Invoices.ClientID = Clients.ID
             ORDER BY Invoices.ID DESC
-        `;
-    return await connection.query(sql);
-  });
-  ipcMain.handle("invoices-getOne", async (_event, id) => {
-    const invoice = await connection.query(`SELECT * FROM Invoices WHERE ID = ${id}`);
-    const items = await connection.query(`
+        `)), E.handle("invoices-getOne", async (c, e) => {
+    const t = await a.query(`SELECT * FROM Invoices WHERE ID = ${e}`), r = await a.query(`
             SELECT InvoiceItems.*, Products.Name as ProductName, Products.Code as ProductCode 
             FROM InvoiceItems 
             LEFT JOIN Products ON InvoiceItems.ProductID = Products.ID 
-            WHERE InvoiceID = ${id}
+            WHERE InvoiceID = ${e}
         `);
-    return { ...invoice[0], Items: items };
-  });
-  ipcMain.handle("save-invoice", async (_event, invoice) => {
+    return { ...t[0], Items: r };
+  }), E.handle("save-invoice", async (c, e) => {
     try {
-      let invoiceID = invoice.ID;
-      const invoiceDate = new Date(invoice.InvoiceDate).toISOString().split("T")[0];
-      const dueDate = invoice.DueDate ? new Date(invoice.DueDate).toISOString().split("T")[0] : null;
-      if (invoiceID) {
-        await connection.execute(`
+      let t = e.ID;
+      const r = new Date(e.InvoiceDate).toISOString().split("T")[0], o = e.DueDate ? new Date(e.DueDate).toISOString().split("T")[0] : null;
+      if (t ? (await a.execute(`
                     UPDATE Invoices 
-                    SET ClientID=${invoice.ClientID}, 
-                        InvoiceDate='${invoiceDate}', 
-                        DueDate=${dueDate ? `'${dueDate}'` : "NULL"}, 
-                        TotalAmount=${invoice.TotalAmount},
-                        Status='${invoice.Status || "Unpaid"}',
-                        ExampleField='${invoice.ExampleField || ""}'
-                    WHERE ID=${invoiceID}
-                `);
-        await connection.execute(`DELETE FROM InvoiceItems WHERE InvoiceID = ${invoiceID}`);
-      } else {
-        await connection.query(`
+                    SET ClientID=${e.ClientID}, 
+                        InvoiceDate='${r}', 
+                        DueDate=${o ? `'${o}'` : "NULL"}, 
+                        TotalAmount=${e.TotalAmount},
+                        Status='${e.Status || "Unpaid"}',
+                        ExampleField='${e.ExampleField || ""}'
+                    WHERE ID=${t}
+                `), await a.execute(`DELETE FROM InvoiceItems WHERE InvoiceID = ${t}`)) : (await a.query(`
                     INSERT INTO Invoices (ClientID, InvoiceDate, DueDate, TotalAmount, Status, ExampleField)
-                    VALUES (${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : "NULL"}, ${invoice.TotalAmount}, '${invoice.Status || "Unpaid"}', '${invoice.ExampleField || ""}')
-                `);
-        const res = await connection.query("SELECT @@IDENTITY AS id");
-        invoiceID = res[0].id;
-      }
-      if (invoice.Items && invoice.Items.length > 0) {
-        for (const item of invoice.Items) {
-          const itemDate = item.ItemDate ? `'${new Date(item.ItemDate).toISOString().split("T")[0]}'` : "NULL";
-          const remarks = item.Remarks ? `'${item.Remarks.replace(/'/g, "''")}'` : "NULL";
-          const unit = item.Unit ? `'${item.Unit.replace(/'/g, "''")}'` : "NULL";
-          const project = item.Project ? `'${item.Project.replace(/'/g, "''")}'` : "NULL";
-          const taxRate = item.TaxRate || 10;
-          await connection.execute(`
+                    VALUES (${e.ClientID}, '${r}', ${o ? `'${o}'` : "NULL"}, ${e.TotalAmount}, '${e.Status || "Unpaid"}', '${e.ExampleField || ""}')
+                `), t = (await a.query("SELECT @@IDENTITY AS id"))[0].id), e.Items && e.Items.length > 0)
+        for (const s of e.Items) {
+          const I = s.ItemDate ? `'${new Date(s.ItemDate).toISOString().split("T")[0]}'` : "NULL", d = s.Remarks ? `'${s.Remarks.replace(/'/g, "''")}'` : "NULL", N = s.Unit ? `'${s.Unit.replace(/'/g, "''")}'` : "NULL", P = s.Project ? `'${s.Project.replace(/'/g, "''")}'` : "NULL", p = s.TaxRate || 10;
+          await a.execute(`
                        INSERT INTO InvoiceItems (InvoiceID, ProductID, Quantity, UnitPrice, Unit, ItemDate, Remarks, Project, TaxRate)
-                       VALUES (${invoiceID}, ${item.ProductID}, ${item.Quantity}, ${item.UnitPrice}, ${unit}, ${itemDate}, ${remarks}, ${project}, ${taxRate})
+                       VALUES (${t}, ${s.ProductID}, ${s.Quantity}, ${s.UnitPrice}, ${N}, ${I}, ${d}, ${P}, ${p})
                    `);
         }
-      }
-      return { success: true, id: invoiceID };
-    } catch (e) {
-      console.error(e);
-      throw e;
+      return { success: !0, id: t };
+    } catch (t) {
+      throw console.error(t), t;
     }
-  });
-  ipcMain.handle("save-backup", async () => {
-    if (!win) return { success: false, error: "Window not found" };
-    const date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
-    const defaultName = `database-backup-${date}.bak`;
-    const { dialog } = await import("electron");
-    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+  }), E.handle("save-backup", async () => {
+    if (!n) return { success: !1, error: "Window not found" };
+    const e = `database-backup-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "")}.bak`, { dialog: t } = await import("electron"), { canceled: r, filePath: o } = await t.showSaveDialog(n, {
       title: "Save Database Backup",
-      defaultPath: defaultName,
+      defaultPath: e,
       filters: [{ name: "Backup File", extensions: ["bak", "accdb"] }]
     });
-    if (canceled || !filePath) return { success: false, canceled: true };
+    if (r || !o) return { success: !1, canceled: !0 };
     try {
-      const isPackaged2 = app.isPackaged;
-      const dbPath = isPackaged2 ? path$1.join(app.getPath("userData"), "sales.accdb") : path$1.join(process.cwd(), "sales.accdb");
-      const fs2 = await import("fs");
-      await fs2.promises.copyFile(dbPath, filePath);
-      return { success: true, path: filePath };
-    } catch (e) {
-      console.error("Backup failed:", e);
-      return { success: false, error: e.message };
+      const I = l.isPackaged ? i.join(l.getPath("userData"), "sales.accdb") : i.join(process.cwd(), "sales.accdb");
+      return await (await import("fs")).promises.copyFile(I, o), { success: !0, path: o };
+    } catch (s) {
+      return console.error("Backup failed:", s), { success: !1, error: s.message };
     }
-  });
-  ipcMain.handle("restore-backup", async () => {
-    if (!win) return { success: false, error: "Window not found" };
-    const { dialog } = await import("electron");
-    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+  }), E.handle("restore-backup", async () => {
+    if (!n) return { success: !1, error: "Window not found" };
+    const { dialog: c } = await import("electron"), { canceled: e, filePaths: t } = await c.showOpenDialog(n, {
       title: "Select Backup File to Restore",
       properties: ["openFile"],
       filters: [{ name: "Backup File", extensions: ["bak", "accdb"] }]
     });
-    if (canceled || !filePaths[0]) return { success: false, canceled: true };
+    if (e || !t[0]) return { success: !1, canceled: !0 };
     try {
-      const isPackaged2 = app.isPackaged;
-      const dbPath = isPackaged2 ? path$1.join(app.getPath("userData"), "sales.accdb") : path$1.join(process.cwd(), "sales.accdb");
-      const fs2 = await import("fs");
-      await fs2.promises.copyFile(dbPath, dbPath + ".pre-restore.bak").catch(() => {
-      });
-      await fs2.promises.copyFile(filePaths[0], dbPath);
-      return { success: true };
-    } catch (e) {
-      console.error("Restore failed:", e);
-      return { success: false, error: e.message };
+      const o = l.isPackaged ? i.join(l.getPath("userData"), "sales.accdb") : i.join(process.cwd(), "sales.accdb"), s = await import("fs");
+      return await s.promises.copyFile(o, o + ".pre-restore.bak").catch(() => {
+      }), await s.promises.copyFile(t[0], o), { success: !0 };
+    } catch (r) {
+      return console.error("Restore failed:", r), { success: !1, error: r.message };
     }
   });
 });
 export {
-  MAIN_DIST,
-  RENDERER_DIST,
-  VITE_DEV_SERVER_URL
+  b as MAIN_DIST,
+  L as RENDERER_DIST,
+  T as VITE_DEV_SERVER_URL
 };

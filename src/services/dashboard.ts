@@ -19,7 +19,6 @@ export const dashboardService = {
 
         const now = new Date();
         const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // 0-indexed
 
         // 1. Calculate Monthly Sales & Trends
         const getMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
