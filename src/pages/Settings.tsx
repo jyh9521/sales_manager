@@ -1,12 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSettings, defaultSettings, settingsService } from '../services/settings';
+import { Snackbar, Alert } from '@mui/material';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const Settings = () => {
     const { t } = useTranslation();
     const [settings, setSettings] = useState<AppSettings>(defaultSettings);
     const [status, setStatus] = useState('');
     const [backupStatus, setBackupStatus] = useState('');
+
+    const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' | 'warning' }>({
+        open: false, message: '', severity: 'info'
+    });
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean, title?: string, message: string, onConfirm: () => void }>({
+        open: false, message: '', onConfirm: () => { }
+    });
+
+    const showToast = (message: string, severity: 'success' | 'error' = 'success') => {
+        setToast({ open: true, message, severity });
+    };
+
+    const handleCloseToast = () => {
+        setToast({ ...toast, open: false });
+    };
 
     useEffect(() => {
         loadSettings();
@@ -20,7 +37,7 @@ const Settings = () => {
     const handleSave = async () => {
         try {
             await settingsService.save(settings);
-            setStatus('Settings saved successfully!');
+            setStatus(t('settings_save_success', 'Settings saved successfully!'));
             setTimeout(() => setStatus(''), 3000);
         } catch (e) {
             setStatus('Error saving settings: ' + e);
@@ -48,22 +65,28 @@ const Settings = () => {
     };
 
     const handleRestore = async () => {
-        if (!confirm('CAUTION: This will overwrite your current data with the backup file.\n\nThe application will create a safety copy of current data before restoring.\n\nContinue?')) return;
-
-        setBackupStatus('Restoring...');
-        try {
-            const result = await window.ipcRenderer.invoke('restore-backup');
-            if (result.success) {
-                alert('Restore successful! The application will now reload.');
-                window.location.reload();
-            } else if (result.canceled) {
-                setBackupStatus('');
-            } else {
-                setBackupStatus('Restore failed: ' + result.error);
+        setConfirmDialog({
+            open: true,
+            title: t('settings_restore_confirm_title', 'Restore Backup'),
+            message: t('settings_restore_confirm_msg', 'CAUTION: This will overwrite your current data with the backup file.\n\nThe application will create a safety copy of current data before restoring.\n\nContinue?'),
+            onConfirm: async () => {
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+                setBackupStatus('Restoring...');
+                try {
+                    const result = await window.ipcRenderer.invoke('restore-backup');
+                    if (result.success) {
+                        showToast(t('settings_restore_success', 'Restore successful! The application will now reload.'));
+                        setTimeout(() => window.location.reload(), 2000);
+                    } else if (result.canceled) {
+                        setBackupStatus('');
+                    } else {
+                        setBackupStatus('Restore failed: ' + result.error);
+                    }
+                } catch (e) {
+                    setBackupStatus('Error: ' + e);
+                }
             }
-        } catch (e) {
-            setBackupStatus('Error: ' + e);
-        }
+        });
     };
 
     return (
@@ -72,14 +95,14 @@ const Settings = () => {
 
             {/* Company Info */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-700 mb-6 border-b pb-2">My Company Info (Shown on Invoices)</h3>
+                <h3 className="text-lg font-semibold text-gray-700 mb-6 border-b pb-2">{t('settings_company_info', 'My Company Info (Shown on Invoices)')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_company_name', 'Company Name')}</label>
                         <input className="input-field" value={settings.CompanyName} onChange={e => handleChange('CompanyName', e.target.value)} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_zip_code', 'Zip Code')}</label>
                         <div className="flex items-center gap-2">
                             <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all bg-white relative">
                                 <span className="pl-3 pr-1 text-gray-500 font-medium select-none">〒</span>
@@ -106,15 +129,15 @@ const Settings = () => {
                                     }}
                                 />
                             </div>
-                            <span className="text-xs text-gray-400 hidden md:inline">Auto-fill available</span>
+                            <span className="text-xs text-gray-400 hidden md:inline">{t('settings_auto_fill', 'Auto-fill available')}</span>
                         </div>
                     </div>
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_address', 'Address')}</label>
                         <input className="input-field" value={settings.Address} onChange={e => handleChange('Address', e.target.value)} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_phone', 'Phone')}</label>
                         <div className="flex items-center gap-2">
                             <input
                                 className="input-field text-center px-1"
@@ -157,65 +180,65 @@ const Settings = () => {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Registration No. (T-Number)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_reg_number', 'Invoice Registration No. (T-Number)')}</label>
                         <input className="input-field" value={settings.RegistrationNumber} onChange={e => handleChange('RegistrationNumber', e.target.value)} />
                     </div>
                 </div>
 
-                <h4 className="text-md font-semibold text-gray-700 mt-6 mb-4">Bank Account Info</h4>
+                <h4 className="text-md font-semibold text-gray-700 mt-6 mb-4">{t('settings_bank_info', 'Bank Account Info')}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_bank_name', 'Bank Name')}</label>
                         <input className="input-field" value={settings.BankName} onChange={e => handleChange('BankName', e.target.value)} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_branch_name', 'Branch Name')}</label>
                         <input className="input-field" value={settings.BranchName} onChange={e => handleChange('BranchName', e.target.value)} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_account_type', 'Account Type')}</label>
                         <select className="input-field" value={settings.AccountType} onChange={e => handleChange('AccountType', e.target.value)}>
                             <option value="普通">普通 (Futsuu)</option>
                             <option value="当座">当座 (Touza)</option>
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_account_number', 'Account Number')}</label>
                         <input className="input-field" value={settings.AccountNumber} onChange={e => handleChange('AccountNumber', e.target.value)} />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder (Kana)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_account_holder', 'Account Holder (Kana)')}</label>
                         <input className="input-field" value={settings.AccountHolder} onChange={e => handleChange('AccountHolder', e.target.value)} />
                     </div>
                 </div>
 
                 <div className="mt-6 flex justify-end items-center gap-4">
                     {status && <span className="text-emerald-600 text-sm font-medium">{status}</span>}
-                    <button onClick={handleSave} className="btn-primary">Save Settings</button>
+                    <button onClick={handleSave} className="btn-primary">{t('settings_save', 'Save Settings')}</button>
                 </div>
             </div>
 
             {/* Data Management */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">Data Management</h3>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('settings_data_mgmt', 'Data Management')}</h3>
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div>
-                            <h4 className="font-bold text-gray-800">Backup Database</h4>
-                            <p className="text-sm text-gray-500">Save a copy of your data (e.g. database-backup-YYYYMMDD.bak).</p>
+                            <h4 className="font-bold text-gray-800">{t('settings_backup_db', 'Backup Database')}</h4>
+                            <p className="text-sm text-gray-500">{t('settings_backup_desc', 'Save a copy of your data (e.g. database-backup-YYYYMMDD.bak).')}</p>
                         </div>
                         <button onClick={handleBackupSave} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors shadow">
-                            Export Backup
+                            {t('settings_export_backup', 'Export Backup')}
                         </button>
                     </div>
 
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div>
-                            <h4 className="font-bold text-gray-800">Restore Database</h4>
-                            <p className="text-sm text-gray-500">Restore data from a backup file (current data will be overwritten).</p>
+                            <h4 className="font-bold text-gray-800">{t('settings_restore_db', 'Restore Database')}</h4>
+                            <p className="text-sm text-gray-500">{t('settings_restore_desc', 'Restore data from a backup file (current data will be overwritten).')}</p>
                         </div>
                         <button onClick={handleRestore} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition-colors shadow-sm">
-                            Import Backup
+                            {t('settings_import_backup', 'Import Backup')}
                         </button>
                     </div>
                 </div>
@@ -255,6 +278,23 @@ const Settings = () => {
                     cursor: not-allowed;
                 }
              `}</style>
+            <ConfirmDialog
+                open={confirmDialog.open}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+            />
+            <Snackbar
+                open={toast.open}
+                autoHideDuration={3000}
+                onClose={handleCloseToast}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%' }}>
+                    {toast.message}
+                </Alert>
+            </Snackbar>
         </div>
     );
 };

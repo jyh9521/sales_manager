@@ -8,15 +8,21 @@ import { Unit, unitService } from '../services/units';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Button, TextField, IconButton, MenuItem, Box, Typography,
-    Grid, InputAdornment, Autocomplete
+    Grid, InputAdornment, Autocomplete, Dialog, Checkbox
 } from '@mui/material';
 import {
     Add as AddIcon,
     Delete as DeleteIcon,
     Visibility as VisibilityIcon,
     Search as SearchIcon,
-    Close as CloseIcon
+    Close as CloseIcon,
+    Download as DownloadIcon,
+    Print as PrintIcon,
+    Edit as EditIcon
 } from '@mui/icons-material';
+import { Snackbar, Alert } from '@mui/material';
+import ConfirmDialog from '../components/ConfirmDialog';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const { t } = useTranslation();
@@ -24,7 +30,9 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const [clients, setClients] = useState<Client[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+
     const [units, setUnits] = useState<Unit[]>([]);
+    const [loading, setLoading] = useState(true);
 
     // Filters
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
@@ -39,9 +47,26 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const [selectedClientId, setSelectedClientId] = useState<number | null>(filterClientId || null);
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
     const [items, setItems] = useState<InvoiceItem[]>([]);
+    const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<number>>(new Set());
 
     // Product Search
     const [searchTerm, setSearchTerm] = useState('');
+
+    // UI Feedback
+    const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' | 'warning' }>({
+        open: false, message: '', severity: 'info'
+    });
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean, title?: string, message: string, onConfirm: () => void }>({
+        open: false, message: '', onConfirm: () => { }
+    });
+
+    const showToast = (message: string, severity: 'success' | 'error' = 'success') => {
+        setToast({ open: true, message, severity });
+    };
+
+    const handleCloseToast = () => {
+        setToast({ ...toast, open: false });
+    };
 
     useEffect(() => {
         loadData();
@@ -64,15 +89,16 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setProducts(pData);
         setSettings(sData);
         setUnits(uData);
+        setLoading(false);
     };
 
     const handleSave = async () => {
         if (!selectedClientId) {
-            alert('Please select a client');
+            showToast('Please select a client', 'error');
             return;
         }
         if (items.length === 0) {
-            alert('Please add at least one item');
+            showToast('Please add at least one item', 'error');
             return;
         }
 
@@ -87,6 +113,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         };
 
         await invoiceService.create(newInvoice);
+        showToast('Invoice created successfully');
 
         setIsCreateMode(false);
         setEditingInvoice(null);
@@ -112,11 +139,18 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         // Load Client's products if needed? Usually auto-loaded.
     };
 
-    const handleDelete = async (id: number) => {
-        if (confirm('Delete this invoice?')) {
-            await invoiceService.delete(id);
-            loadData();
-        }
+    const handleDelete = (id: number) => {
+        setConfirmDialog({
+            open: true,
+            title: t('delete_invoice', 'Delete Invoice'),
+            message: t('confirm_delete_msg', 'Are you sure you want to delete this invoice?'),
+            onConfirm: async () => {
+                await invoiceService.delete(id);
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+                showToast('Invoice deleted');
+                loadData();
+            }
+        });
     };
 
     const addItem = (product?: Product) => {
@@ -254,14 +288,77 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         return subtotal + totalTax;
     };
 
+    // CSV Export
+    const handleExportCSV = (invoice: Invoice) => {
+        const headers = ['Date', 'Product', 'Quantity', 'Unit', 'UnitPrice', 'Total', 'Remarks'];
+        const rows = (invoice.Items || []).map(item => [
+            item.ItemDate ? new Date(item.ItemDate).toLocaleDateString() : '',
+            item.ProductName,
+            item.Quantity,
+            item.Unit,
+            item.UnitPrice,
+            item.Quantity * item.UnitPrice,
+            item.Remarks
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+
+        // Add BOM for Excel equality
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Invoice_${invoice.ID}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
+    const handleMergeAndPrint = () => {
+        if (selectedInvoiceIds.size === 0) return;
+
+        const selectedInvoices = invoices.filter(inv => selectedInvoiceIds.has(inv.ID));
+        if (selectedInvoices.length === 0) return;
+
+        // Base the merged invoice on the most recent one (for client info, etc.)
+        // Ideally they should be from the same client.
+        const base = selectedInvoices[0];
+        const allItems: InvoiceItem[] = [];
+        let total = 0;
+
+        selectedInvoices.forEach(inv => {
+            const currentItems = inv.Items || [];
+            allItems.push(...currentItems);
+            total += inv.TotalAmount;
+        });
+
+        // Create a temporary Merged Invoice
+        const mergedInvoice: Invoice = {
+            ...base,
+            ID: 0, // Indicator for merged? or just visually handled
+            Items: allItems,
+            TotalAmount: total,
+            // Maybe concat dates? or just use base date
+        };
+
+        setViewInvoice(mergedInvoice);
+    };
+
     // -- Print View Component --
     const PrintView = ({ invoice }: { invoice: Invoice }) => {
         const client = clients.find(c => c.ID === invoice.ClientID);
 
         // Process Tax on the fly for Print View (since invoice.Items might not be in state yet if we just viewing)
         // Similar logic to calculateTaxSummary
-        const standardItems = invoice.Items.filter(i => (i.TaxRate || 10) === 10);
-        const reducedItems = invoice.Items.filter(i => (i.TaxRate || 10) === 8);
+        const items = invoice.Items || [];
+        const standardItems = items.filter(i => (i.TaxRate || 10) === 10);
+        const reducedItems = items.filter(i => (i.TaxRate || 10) === 8);
         const standardSubtotal = standardItems.reduce((sum, i) => sum + (i.Quantity * i.UnitPrice), 0);
         const reducedSubtotal = reducedItems.reduce((sum, i) => sum + (i.Quantity * i.UnitPrice), 0);
         const standardTax = Math.floor(standardSubtotal * 0.1);
@@ -273,7 +370,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         const dateStr = new Date(invoice.InvoiceDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
 
         // Group items by Project
-        const groupedItems = invoice.Items.reduce((acc, item) => {
+        const groupedItems = items.reduce((acc, item) => {
             const key = item.Project || 'GENERAL_NO_PROJECT';
             if (!acc[key]) acc[key] = [];
             acc[key].push(item);
@@ -366,7 +463,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
                 {/* Table */}
                 <table className="w-full border-collapse border border-blue-600 text-xs mb-4">
-                    <thead>
+                    <thead className="print:table-header-group">
                         <tr className="bg-blue-600 text-white print:bg-blue-600 print-color-adjust">
                             <th className="border border-blue-400 py-1 px-2 w-16">日付</th>
                             <th className="border border-blue-400 py-1 px-2">内容</th>
@@ -377,52 +474,59 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             <th className="border border-blue-400 py-1 px-2 w-24">金額</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {generalItems.map((item, idx) => (
-                            <tr key={'gen-' + idx} className="text-center">
-                                <td className="border border-blue-600 py-1">
-                                    {item.ItemDate ? new Date(item.ItemDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}
-                                </td>
-                                <td className="border border-blue-600 py-1 px-2 text-left">
-                                    {item.ProductName}
-                                    {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
-                                </td>
-                                <td className="border border-blue-600 py-1"></td>
-                                <td className="border border-blue-600 py-1">{item.Quantity}</td>
-                                <td className="border border-blue-600 py-1">{item.Unit || '-'}</td>
-                                <td className="border border-blue-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
-                                <td className="border border-blue-600 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
-                            </tr>
-                        ))}
-
-                        {projects.map(project => (
-                            <React.Fragment key={project}>
-                                <tr className="text-center font-bold bg-blue-50/50 print:bg-transparent">
-                                    <td className="border border-blue-600 py-1 print:border-x-blue-600" colSpan={7}>
-                                        ----- {project} -----
+                    {/* General Items Body */}
+                    {generalItems.length > 0 && (
+                        <tbody>
+                            {generalItems.map((item, idx) => (
+                                <tr key={'gen-' + idx} className="text-center">
+                                    <td className="border border-blue-600 py-1">
+                                        {item.ItemDate ? new Date(item.ItemDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}
                                     </td>
+                                    <td className="border border-blue-600 py-1 px-2 text-left">
+                                        {item.ProductName}
+                                        {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
+                                    </td>
+                                    <td className="border border-blue-600 py-1"></td>
+                                    <td className="border border-blue-600 py-1">{item.Quantity}</td>
+                                    <td className="border border-blue-600 py-1">{item.Unit || '-'}</td>
+                                    <td className="border border-blue-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
+                                    <td className="border border-blue-600 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
                                 </tr>
-                                {groupedItems[project].map((item, idx) => (
-                                    <tr key={project + idx} className="text-center">
-                                        <td className="border border-blue-600 py-1">
-                                            {item.ItemDate ? new Date(item.ItemDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}
-                                        </td>
-                                        <td className="border border-blue-600 py-1 px-2 text-left">
-                                            {item.ProductName}
-                                            {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
-                                        </td>
-                                        <td className="border border-blue-600 py-1"></td>
-                                        <td className="border border-blue-600 py-1">{item.Quantity}</td>
-                                        <td className="border border-blue-600 py-1">{item.Unit || '-'}</td>
-                                        <td className="border border-blue-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
-                                        <td className="border border-blue-600 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                            </React.Fragment>
-                        ))}
+                            ))}
+                        </tbody>
+                    )}
 
-                        {/* Empty Rows Filler */}
-                        {Array.from({ length: Math.max(0, 10 - invoice.Items.length - projects.length) }).map((_, i) => (
+                    {/* Project Bodies */}
+                    {projects.map(project => (
+                        <tbody key={project} className="print:break-inside-avoid">
+                            {groupedItems[project].map((item, idx) => (
+                                <tr key={project + idx} className="text-center">
+                                    <td className="border border-blue-600 py-1">
+                                        {item.ItemDate ? new Date(item.ItemDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}
+                                    </td>
+                                    <td className="border border-blue-600 py-1 px-2 text-left">
+                                        {item.ProductName}
+                                        {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
+                                    </td>
+                                    <td className="border border-blue-600 py-1"></td>
+                                    <td className="border border-blue-600 py-1">{item.Quantity}</td>
+                                    <td className="border border-blue-600 py-1">{item.Unit || '-'}</td>
+                                    <td className="border border-blue-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
+                                    <td className="border border-blue-600 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                            {/* Project Footer Separator */}
+                            <tr className="text-center font-bold bg-blue-50/50 print:bg-transparent">
+                                <td className="border border-blue-600 py-1 print:border-x-blue-600" colSpan={7}>
+                                    ----- {project} -----
+                                </td>
+                            </tr>
+                        </tbody>
+                    ))}
+
+                    {/* Empty Filler Body */}
+                    <tbody>
+                        {Array.from({ length: Math.max(0, 10 - items.length - projects.length) }).map((_, i) => (
                             <tr key={`empty - ${i} `} className="text-center h-6">
                                 <td className="border border-blue-600"></td>
                                 <td className="border border-blue-600"></td>
@@ -478,30 +582,78 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     };
 
     // View Modal
+    // View Modal
     if (viewInvoice) {
         return (
-            <div className="fixed inset-0 bg-gray-900/90 z-[100] overflow-auto flex flex-col items-center p-4">
-                <div className="w-full max-w-4xl flex justify-between items-center mb-4 text-white print:hidden">
-                    <h2 className="text-xl">Invoice Preview</h2>
-                    <div className="flex gap-4">
-                        <button onClick={() => handleEditInvoice(viewInvoice)} className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded font-bold">✏️ Edit</button>
-                        <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold">🖨️ Print</button>
-                        <button onClick={() => setViewInvoice(null)} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded">Close</button>
+            <Dialog
+                fullScreen
+                open={Boolean(viewInvoice)}
+                onClose={() => setViewInvoice(null)}
+            >
+                <div className="flex flex-col items-center p-4 min-h-screen bg-gray-100 dark:bg-gray-900">
+                    <div className="w-full max-w-4xl flex justify-between items-center mb-4 text-gray-800 dark:text-white print:hidden sticky top-0 bg-gray-100 dark:bg-gray-900 z-10 py-2">
+                        <h2 className="text-xl font-bold">{t('invoices_preview', 'Invoice Preview')}</h2>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outlined"
+                                startIcon={<DownloadIcon />}
+                                onClick={() => handleExportCSV(viewInvoice)}
+                            >
+                                {t('invoices_csv', 'CSV')}
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<PrintIcon />}
+                                onClick={() => window.print()}
+                            >
+                                {t('invoices_print', 'Print')}
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="secondary"
+                                startIcon={<EditIcon />}
+                                onClick={() => handleEditInvoice(viewInvoice)}
+                            >
+                                {t('common.edit', 'Edit')}
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => setViewInvoice(null)}
+                            >
+                                {t('common.close', 'Close')}
+                            </Button>
+                        </div>
                     </div>
+                    <div className="bg-white shadow-2xl w-full max-w-[210mm] print:shadow-none print:w-full print:m-0 print:absolute print:top-0 print:left-0">
+                        <PrintView invoice={viewInvoice} />
+                    </div>
+                    <style>{`
+                        @media print {
+                            @page { size: A4; margin: 0; }
+                            body * { visibility: hidden; }
+                            .print-container, .print-container * { visibility: visible; }
+                            .print-container { position: absolute; left: 0; top: 0; width: 100%; min-height: 100%; box-shadow: none !important; margin: 0 !important; }
+                            .print-color-adjust { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            
+                            /* Ensure Table Header only repeats if browser supports it, but user wants it only on first page? 
+                               Actually, standard <thead> repeats. If user DOES NOT want repeat, we should move header to first row of body or just use CSS.
+                               To FORCE NO REPEAT: display: table-row-group for thead? No.
+                               The simplest way to NOT repeat is to just put it in the body or use simple rows.
+                               But let's try leaving it as thead and seeing behavior, or strictly:
+                            */
+                            /* Prevent header repetition on new pages */
+                            thead { display: table-row-group; }
+                            /* Ensure the break-inside-avoid class works */
+                            .print\\:break-inside-avoid {
+                                break-inside: avoid;
+                                page-break-inside: avoid;
+                            }
+                        }
+                    `}</style>
                 </div>
-                <div className="bg-white shadow-2xl w-full max-w-[210mm] print:shadow-none print:w-full">
-                    <PrintView invoice={viewInvoice} />
-                </div>
-                <style>{`
-@media print {
-    @page { size: A4; margin: 0; }
-    body * { visibility: hidden; }
-    .print-container, .print-container * { visibility: visible; }
-    .print-container { position: absolute; left: 0; top: 0; width: 100%; min-height: 100%; box-shadow: none !important; margin: 0 !important; }
-    .print-color-adjust { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
-`}</style>
-            </div>
+            </Dialog>
         );
     }
 
@@ -511,10 +663,14 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1, minHeight: '80vh' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
                     <Typography variant="h5" fontWeight="bold">
-                        {editingInvoice ? `Edit Invoice #${String(editingInvoice.ID).padStart(8, '0')} ` : 'Create New Invoice'}
+                        {editingInvoice ? `${t('invoices_edit_title', 'Edit Invoice #')}${String(editingInvoice.ID).padStart(8, '0')} ` : t('invoices_create_title', 'Create New Invoice')}
                     </Typography>
-                    <Button onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }} color="inherit">
-                        Cancel
+                    <Button
+                        onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }}
+                        variant="outlined"
+                        color="secondary"
+                    >
+                        {t('common.cancel', 'Cancel')}
                     </Button>
                 </Box>
 
@@ -523,7 +679,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         <TextField
                             select
                             fullWidth
-                            label="Client"
+                            label={t('invoices_client', 'Client')}
                             value={selectedClientId || ''}
                             onChange={(e) => {
                                 setSelectedClientId(Number(e.target.value));
@@ -531,7 +687,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             }}
                             variant="outlined"
                         >
-                            <MenuItem value=""><em>Select Client...</em></MenuItem>
+                            <MenuItem value=""><em>{t('invoices_select_client', 'Select Client...')}</em></MenuItem>
                             {clients.filter(c => c.IsActive).map(c => (
                                 <MenuItem key={c.ID} value={c.ID}>{c.Name}</MenuItem>
                             ))}
@@ -541,7 +697,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         <TextField
                             type="date"
                             fullWidth
-                            label="Date"
+                            label={t('invoices_date', 'Date')}
                             InputLabelProps={{ shrink: true }}
                             value={invoiceDate}
                             onChange={e => setInvoiceDate(e.target.value)}
@@ -552,18 +708,18 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
                 {/* Items Section */}
                 <Box sx={{ mb: 4 }}>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>Line Items</Typography>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>{t('invoices_line_items', 'Line Items')}</Typography>
                     <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
                         <Table size="small">
                             <TableHead sx={{ bgcolor: 'grey.50' }}>
                                 <TableRow>
-                                    <TableCell width="120">Date</TableCell>
-                                    <TableCell width="250">Product</TableCell>
-                                    <TableCell width="100">Unit Price</TableCell>
-                                    <TableCell width="80">Qty</TableCell>
-                                    <TableCell width="100">Unit</TableCell>
-                                    <TableCell align="right" width="120">Total</TableCell>
-                                    <TableCell>Remarks</TableCell>
+                                    <TableCell width="120">{t('invoices_date', 'Date')}</TableCell>
+                                    <TableCell width="250">{t('invoices_product', 'Product')}</TableCell>
+                                    <TableCell width="100">{t('invoices_unit_price', 'Unit Price')}</TableCell>
+                                    <TableCell width="80">{t('invoices_qty', 'Qty')}</TableCell>
+                                    <TableCell width="100">{t('invoices_unit', 'Unit')}</TableCell>
+                                    <TableCell align="right" width="120">{t('invoices_total', 'Total')}</TableCell>
+                                    <TableCell>{t('invoices_remarks', 'Remarks')}</TableCell>
                                     <TableCell width="50"></TableCell>
                                 </TableRow>
                             </TableHead>
@@ -680,55 +836,41 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                         disabled={!selectedClientId}
                                     />
                                 )}
-                                renderOption={(props, option) => (
-                                    <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <div>
-                                            <Typography variant="body2" color="text.primary">{option.Name}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{option.Code}</Typography>
-                                        </div>
-                                        <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
-                                            ¥{option.UnitPrice.toLocaleString()}
-                                        </Typography>
-                                    </li>
-                                )}
+                                disabled={!selectedClientId}
                             />
                         </Box>
-                        <Typography variant="caption" color="text.secondary">
-                            Or <Button size="small" onClick={() => addItem()}>Add Empty Row</Button>
-                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                            <Button size="small" onClick={() => addItem()}>{t('invoices_add_empty_row', 'Or Add Empty Row')}</Button>
+                        </Box>
                     </Box>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 3, borderTop: 1, borderColor: 'divider' }}>
-                    <Box sx={{ width: 300 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
-                            <Typography>Subtotal</Typography>
+                    <Box sx={{ width: 300, bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
+                        <Grid container justifyContent="space-between" sx={{ mb: 1 }}>
+                            <Typography>{t('invoices_subtotal', 'Subtotal')}</Typography>
                             <Typography>¥{calculateTaxSummary().subtotal.toLocaleString()}</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
-                            <Typography>Tax (Total)</Typography>
+                        </Grid>
+                        <Grid container justifyContent="space-between" sx={{ mb: 1 }}>
+                            <Typography>{t('invoices_tax_total', 'Tax (Total)')}</Typography>
                             <Typography>¥{calculateTaxSummary().totalTax.toLocaleString()}</Typography>
-                        </Box>
-                        {calculateTaxSummary().reducedSubtotal > 0 && (
-                            <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mb: 1, color: 'text.disabled' }}>
-                                (Standard: ¥{calculateTaxSummary().standardTax}, Reduced: ¥{calculateTaxSummary().reducedTax})
-                            </Typography>
-                        )}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: 1, borderColor: 'divider', mb: 2 }}>
-                            <Typography variant="h6" fontWeight="bold">Total</Typography>
+                        </Grid>
+                        <Box sx={{ my: 1, borderTop: 1, borderColor: 'divider' }} />
+                        <Grid container justifyContent="space-between">
+                            <Typography variant="h6" fontWeight="bold">{t('invoices_total', 'Total')}</Typography>
                             <Typography variant="h6" fontWeight="bold">¥{calculateTotal().toLocaleString()}</Typography>
-                        </Box>
-                        <Button
-                            fullWidth
-                            variant="contained"
-                            color="primary"
-                            size="large"
-                            onClick={handleSave}
-                            sx={{ mt: 2 }}
-                        >
-                            Save Invoice
-                        </Button>
+                        </Grid>
                     </Box>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        onClick={handleSave}
+                        sx={{ minWidth: 200 }}
+                    >
+                        {t('invoices_save', 'Save Invoice')}
+                    </Button>
                 </Box>
             </Box>
         );
@@ -742,17 +884,15 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
                         {t('invoices', 'Invoices')}
                     </Typography>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => {
-                            setIsCreateMode(true);
-                            setItems([]);
-                            setEditingInvoice(null);
-                        }}
-                    >
-                        New Invoice
-                    </Button>
+                    {selectedInvoiceIds.size > 0 && (
+                        <Button
+                            variant="outlined"
+                            startIcon={<PrintIcon />}
+                            onClick={handleMergeAndPrint}
+                        >
+                            {t('invoices_merge_print', 'Merge & Print')} ({selectedInvoiceIds.size})
+                        </Button>
+                    )}
                     <TextField
                         type="month"
                         variant="outlined"
@@ -776,6 +916,19 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                 <Table sx={{ minWidth: 650 }} aria-label="invoice table">
                     <TableHead sx={{ bgcolor: 'grey.50' }}>
                         <TableRow>
+                            <TableCell padding="checkbox">
+                                <Checkbox
+                                    indeterminate={selectedInvoiceIds.size > 0 && selectedInvoiceIds.size < sortedInvoices.length}
+                                    checked={sortedInvoices.length > 0 && selectedInvoiceIds.size === sortedInvoices.length}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setSelectedInvoiceIds(new Set(sortedInvoices.map(i => i.ID)));
+                                        } else {
+                                            setSelectedInvoiceIds(new Set());
+                                        }
+                                    }}
+                                />
+                            </TableCell>
                             <TableCell onClick={() => handleSort('InvoiceDate')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
                                 Date {sortConfig.key === 'InvoiceDate' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                             </TableCell>
@@ -800,7 +953,19 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 hover
                                 onClick={() => setViewInvoice(invoice)}
                                 sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
+                                selected={selectedInvoiceIds.has(invoice.ID)}
                             >
+                                <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox
+                                        checked={selectedInvoiceIds.has(invoice.ID)}
+                                        onChange={(e) => {
+                                            const newSet = new Set(selectedInvoiceIds);
+                                            if (e.target.checked) newSet.add(invoice.ID);
+                                            else newSet.delete(invoice.ID);
+                                            setSelectedInvoiceIds(newSet);
+                                        }}
+                                    />
+                                </TableCell>
                                 <TableCell component="th" scope="row" sx={{ fontFamily: 'monospace' }}>
                                     {new Date(invoice.InvoiceDate).toLocaleDateString()}
                                 </TableCell>
@@ -844,6 +1009,27 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            <ConfirmDialog
+                open={confirmDialog.open}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+            />
+
+            <Snackbar
+                open={toast.open}
+                autoHideDuration={3000}
+                onClose={handleCloseToast}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%' }}>
+                    {toast.message}
+                </Alert>
+            </Snackbar>
+
+            <LoadingOverlay open={loading} />
         </Box>
     );
 };

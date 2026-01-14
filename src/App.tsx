@@ -4,19 +4,18 @@ import Products from './pages/Products';
 import Clients from './pages/Clients';
 import Invoices from './pages/Invoices';
 import Settings from './pages/Settings';
+import Dashboard from './pages/Dashboard';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  AppBar, Toolbar, Typography, Grid, Card, CardContent,
-  Container, CssBaseline, ToggleButton, ToggleButtonGroup
+  AppBar, Toolbar, Typography, ToggleButton, ToggleButtonGroup, CssBaseline
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   Inventory2 as InventoryIcon,
   Description as InvoiceIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
-
 const drawerWidth = 260;
 
 function App() {
@@ -45,73 +44,38 @@ function App() {
       case 'settings': return <Settings />;
       case 'dashboard':
       default:
-        return (
-          <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Typography variant="h4" gutterBottom component="div" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 3 }}>
-              {t('dashboard')}
-            </Typography>
-            <Grid container spacing={4}>
-              {[
-                { key: 'clients', color: '#10b981', route: 'clients', icon: <PeopleIcon sx={{ fontSize: 40, color: 'white' }} /> },
-                { key: 'products', color: '#f59e0b', route: 'products', icon: <InventoryIcon sx={{ fontSize: 40, color: 'white' }} /> },
-                { key: 'invoices', color: '#f43f5e', route: 'invoices', icon: <InvoiceIcon sx={{ fontSize: 40, color: 'white' }} /> },
-              ].map((item) => (
-                <Grid size={{ xs: 12, md: 4 }} key={item.key}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s, box-shadow 0.2s',
-                      '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
-                      borderRadius: 3
-                    }}
-                    onClick={() => setCurrentView(item.route)}
-                  >
-                    <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                      <Box sx={{
-                        width: 72,
-                        height: 72,
-                        bgcolor: item.color,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mb: 2,
-                        boxShadow: 2
-                      }}>
-                        {item.icon}
-                      </Box>
-                      <Typography variant="h5" component="div" fontWeight="600" gutterBottom>
-                        {t(item.key)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Manage {t(item.key)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </Container>
-        );
+        return <Dashboard />;
     }
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f4f6f8' }}>
+    <Box sx={{ display: 'flex' }}>
       <CssBaseline />
-
-      {/* Sidebar Drawer */}
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <Toolbar>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            {t(currentView === 'dashboard' ? 'dashboard' : currentView === 'clients' ? 'clients' : currentView === 'products' ? 'products' : currentView === 'invoices' ? 'invoices' : 'settings')}
+          </Typography>
+          <ToggleButtonGroup
+            value={i18n.language}
+            exclusive
+            onChange={changeLanguage}
+            aria-label="language"
+            size="small"
+            sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
+          >
+            <ToggleButton value="en">EN</ToggleButton>
+            <ToggleButton value="zh">中</ToggleButton>
+            <ToggleButton value="ja">日</ToggleButton>
+          </ToggleButtonGroup>
+        </Toolbar>
+      </AppBar>
       <Drawer
         variant="permanent"
         sx={{
           width: drawerWidth,
           flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            bgcolor: 'background.paper',
-            borderRight: '1px solid rgba(0,0,0,0.08)',
-          },
+          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
         }}
       >
         <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
