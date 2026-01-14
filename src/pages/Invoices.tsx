@@ -127,6 +127,15 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setLoading(false);
     };
 
+    // Date Helper to avoid timezone shifts
+    const toLocalYMD = (val: Date | string) => {
+        const d = new Date(val);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const handleCreateNew = () => {
         setIsCreateMode(true);
         setEditingInvoice(null);
@@ -134,10 +143,45 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         const nextId = invoices.length > 0 ? Math.max(...invoices.map(i => i.ID)) + 1 : 1;
         setManualId(String(nextId));
         setManualStatus('Unpaid');
-        setInvoiceDate(new Date().toISOString().slice(0, 10));
-        setDueDate(new Date(new Date().getFullYear(), new Date().getMonth() + 2, 0).toISOString().slice(0, 10));
+
+        // Use local date for default
+        setInvoiceDate(toLocalYMD(new Date()));
+
+        // Due Date: End of next month (approx logic or exact?)
+        // Original: new Date(new Date().getFullYear(), new Date().getMonth() + 2, 0) -> Last day of next month
+        const today = new Date();
+        const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+        setDueDate(toLocalYMD(nextMonthEnd));
+
         if (filterClientId) setSelectedClientId(filterClientId);
     };
+
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isCreateMode) return;
+
+            // Ctrl+S to Save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                // Determine if creating or updating
+                handleSave(editingInvoice ? 'update' : 'create');
+            }
+
+            // Esc to Close (only if no other dialogs are open)
+            if (e.key === 'Escape' && !confirmDialog.open && !isUnitManagerOpen) {
+                // Confirm before closing if there are changes?
+                // For now, just follow existing "Cancel" behavior which doesn't confirm
+                setIsCreateMode(false);
+                setEditingInvoice(null);
+                setItems([]);
+                setManualId('');
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isCreateMode, editingInvoice, items, selectedClientId, invoiceDate, dueDate, manualId, manualStatus, confirmDialog.open, isUnitManagerOpen]);
 
     const handleSave = async (action: 'create' | 'update') => {
         if (!selectedClientId) {
@@ -194,12 +238,29 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
         // Populate Form
         setSelectedClientId(invoice.ClientID);
-        setInvoiceDate(new Date(invoice.InvoiceDate).toISOString().slice(0, 10));
-        setDueDate(invoice.DueDate ? new Date(invoice.DueDate).toISOString().slice(0, 10) : '');
+        setInvoiceDate(toLocalYMD(invoice.InvoiceDate));
+        setDueDate(invoice.DueDate ? toLocalYMD(invoice.DueDate) : '');
         setItems(invoice.Items.map(i => ({
             ...i,
             TaxRate: i.TaxRate || 10
         })));
+    };
+
+    const handleBulkDelete = async () => {
+        try {
+            // SelectedIds is a Set
+            const ids = Array.from(selectedInvoiceIds);
+            for (const id of ids) {
+                await invoiceService.delete(id);
+            }
+            showToast(t('invoices_delete_success', 'Selected invoices deleted'));
+            setSelectedInvoiceIds(new Set());
+            setConfirmDialog({ ...confirmDialog, open: false });
+            loadData();
+        } catch (e) {
+            console.error(e);
+            showToast(t('common.error', 'Error'), 'error');
+        }
     };
 
     const handleDelete = (id: number) => {
@@ -461,8 +522,8 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         return (
             <div className="print-container bg-white text-black p-8 max-w-[210mm] mx-auto min-h-[297mm] relative text-sm">
                 {/* Header Title */}
-                <div className="bg-blue-600 text-white text-center py-2 text-2xl font-serif tracking-widest mb-8 print:bg-blue-600 print-color-adjust">
-                    御 請 求 書
+                <div className="bg-blue-600 text-white text-center py-2 text-2xl font-bold tracking-[1em] mb-8 print:bg-blue-600 print-color-adjust">
+                    御請求書
                 </div>
 
                 {/* Top Section */}
@@ -500,8 +561,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             <div className="flex">
                                 <div className="bg-blue-600 text-white px-2 py-1 w-20 flex items-center justify-center print:bg-blue-600 print-color-adjust">振込期日</div>
                                 <div className="p-2 flex-1">
-                                    {/* Default to end of next month? Or manual? Static text for now */}
-                                    翌月末
+                                    {invoice.DueDate ? new Date(invoice.DueDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '翌月末'}
                                 </div>
                             </div>
                         </div>
@@ -545,7 +605,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         <tr className="bg-blue-600 text-white print:bg-blue-600 print-color-adjust">
                             <th className="border border-blue-400 py-1 px-2 w-16">日付</th>
                             <th className="border border-blue-400 py-1 px-2">内容</th>
-                            <th className="border border-blue-400 py-1 px-2 w-16">軽減税率</th>
+                            <th className="border border-blue-400 py-1 px-2 w-16">税率</th>
                             <th className="border border-blue-400 py-1 px-2 w-12">数量</th>
                             <th className="border border-blue-400 py-1 px-2 w-12">単位</th>
                             <th className="border border-blue-400 py-1 px-2 w-20">単価</th>
@@ -564,7 +624,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                         {item.ProductName}
                                         {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
                                     </td>
-                                    <td className="border border-blue-600 py-1"></td>
+                                    <td className="border border-blue-600 py-1">{item.TaxRate}%</td>
                                     <td className="border border-blue-600 py-1">{item.Quantity}</td>
                                     <td className="border border-blue-600 py-1">{item.Unit || '-'}</td>
                                     <td className="border border-blue-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
@@ -586,7 +646,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                         {item.ProductName}
                                         {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
                                     </td>
-                                    <td className="border border-blue-600 py-1"></td>
+                                    <td className="border border-blue-600 py-1">{item.TaxRate}%</td>
                                     <td className="border border-blue-600 py-1">{item.Quantity}</td>
                                     <td className="border border-blue-600 py-1">{item.Unit || '-'}</td>
                                     <td className="border border-blue-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
@@ -794,7 +854,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             }}
                             variant="outlined"
                         >
-                            <MenuItem value=""><em>Select Client...</em></MenuItem>
+                            <MenuItem value=""><em>{t('invoices_select_client_placeholder', 'Select Client...')}</em></MenuItem>
                             {clients.filter(c => c.IsActive).map(c => (
                                 <MenuItem key={c.ID} value={c.ID}>{c.Name}</MenuItem>
                             ))}
@@ -1139,6 +1199,23 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             onClick={handleMergeAndPrint}
                         >
                             {t('invoices_merge_print', 'Merge & Print')} ({selectedInvoiceIds.size})
+                        </Button>
+                    )}
+                    {selectedInvoiceIds.size > 0 && (
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => {
+                                setConfirmDialog({
+                                    open: true,
+                                    title: t('common.delete', 'Delete'),
+                                    message: t('common.confirm_delete', 'Are you sure?'),
+                                    onConfirm: handleBulkDelete
+                                });
+                            }}
+                        >
+                            {t('common.delete')} ({selectedInvoiceIds.size})
                         </Button>
                     )}
                     <TextField

@@ -9,6 +9,7 @@ export interface Product {
     ClientIDs?: number[];
     Project?: string;
     TaxRate: number; // 8 or 10
+    Stock: number;
     IsActive: boolean;
 }
 
@@ -22,6 +23,7 @@ export const productService = {
             Project: r.Project || '',
             ClientIDs: r.ClientIDs ? r.ClientIDs.split(',').map((id: string) => Number(id)) : [],
             TaxRate: r.TaxRate || 10,
+            Stock: r.Stock || 0,
             IsActive: Number(r.IsActive) !== 0 // Fix: Handle boolean false getting treated as true by !== 0 check
         }));
     },
@@ -35,8 +37,9 @@ export const productService = {
         const clientIdsStr = (product.ClientIDs || []).join(',');
         const isActive = product.IsActive ? 1 : 0;
         const taxRate = product.TaxRate || 10;
+        const stock = product.Stock || 0;
 
-        const sql = `INSERT INTO Products (Code, Name, Description, UnitPrice, ClientIDs, Project, TaxRate, IsActive) VALUES ('${code}', '${name}', '${desc}', ${price}, '${clientIdsStr}', '${project}', ${taxRate}, ${isActive})`;
+        const sql = `INSERT INTO Products (Code, Name, Description, UnitPrice, ClientIDs, Project, TaxRate, Stock, IsActive) VALUES ('${code}', '${name}', '${desc}', ${price}, '${clientIdsStr}', '${project}', ${taxRate}, ${stock}, ${isActive})`;
         await execute(sql);
 
         const idRes = await query<{ ID: number }[]>("SELECT TOP 1 ID FROM Products ORDER BY ID DESC");
@@ -51,8 +54,9 @@ export const productService = {
         const clientIdsStr = (product.ClientIDs || []).join(',');
         const isActive = product.IsActive ? 1 : 0;
         const taxRate = product.TaxRate || 10;
+        const stock = product.Stock || 0;
 
-        const sql = `UPDATE Products SET Code='${code}', Name='${name}', Description='${desc}', UnitPrice=${product.UnitPrice}, ClientIDs='${clientIdsStr}', Project='${project}', TaxRate=${taxRate}, IsActive=${isActive} WHERE ID=${product.ID}`;
+        const sql = `UPDATE Products SET Code='${code}', Name='${name}', Description='${desc}', UnitPrice=${product.UnitPrice}, ClientIDs='${clientIdsStr}', Project='${project}', TaxRate=${taxRate}, Stock=${stock}, IsActive=${isActive} WHERE ID=${product.ID}`;
         await execute(sql);
     },
 

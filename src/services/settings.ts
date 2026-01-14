@@ -13,6 +13,8 @@ export interface AppSettings {
     RegistrationNumber: string; // T番号
     Logo?: string; // Base64 image
     PrimaryColor?: string; // Hex color
+    AutoBackup?: boolean;
+    BackupPath?: string;
 }
 
 export const defaultSettings: AppSettings = {
@@ -27,7 +29,9 @@ export const defaultSettings: AppSettings = {
     AccountHolder: 'カ）xxxx',
     RegistrationNumber: 'T1234567890123',
     Logo: '',
-    PrimaryColor: '#1976d2' // Default Blue
+    PrimaryColor: '#1976d2', // Default Blue
+    AutoBackup: false,
+    BackupPath: ''
 };
 
 export const settingsService = {

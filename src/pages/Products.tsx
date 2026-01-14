@@ -59,7 +59,7 @@ const Products = () => {
 
     // Edit State
     const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({
-        Name: '', Code: '', Description: '', UnitPrice: 0, ClientIDs: [], IsActive: true, Project: '', TaxRate: 10
+        Name: '', Code: '', Description: '', UnitPrice: 0, ClientIDs: [], IsActive: true, Project: '', TaxRate: 10, Stock: 0
     });
     const [codePrefix, setCodePrefix] = useState('');
     const [codeNumber, setCodeNumber] = useState('');
@@ -161,6 +161,22 @@ const Products = () => {
             }
         }
     };
+
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isModalOpen) return;
+
+            // Ctrl+S to Save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                handleSave();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isModalOpen, currentProduct, codePrefix, codeNumber, savedProjects]);
 
     const handleSave = async () => {
         if (!validate()) return;
@@ -375,6 +391,7 @@ const Products = () => {
                                 { key: 'Code', label: t('products_code_header', 'Code'), width: 140 },
                                 { key: 'Name', label: t('products_name', 'Product Info') },
                                 { key: 'Project', label: t('products_category', 'Project') },
+                                { key: 'Stock', label: t('products_stock', 'Stock'), align: 'center', width: 80 },
                                 { key: 'UnitPrice', label: t('products_price', 'Price'), align: 'right' },
                                 { key: 'IsActive', label: t('products_status_header', 'Status'), align: 'center' }
                             ].map(({ key, label, width, align }) => (
@@ -423,6 +440,9 @@ const Products = () => {
                                             sx={{ cursor: 'pointer' }}
                                         />
                                     ) : '-'}
+                                </TableCell>
+                                <TableCell align="center">
+                                    <Chip label={product.Stock || 0} size="small" variant="outlined" />
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
                                     {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
@@ -518,7 +538,7 @@ const Products = () => {
                                     helperText={errors.Name}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 6 }}>
+                            <Grid size={{ xs: 12, md: 4 }}>
                                 <TextField
                                     label={t('products_price', 'Unit Price')}
                                     type="number"
@@ -532,7 +552,16 @@ const Products = () => {
                                     helperText={errors.UnitPrice}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, md: 6 }}>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                    label={t('products_stock', 'Stock')}
+                                    type="number"
+                                    fullWidth
+                                    value={Number(currentProduct.Stock || 0).toString()}
+                                    onChange={e => setCurrentProduct({ ...currentProduct, Stock: Number(e.target.value) })}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
                                 <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
                                     <RadioGroup
                                         row

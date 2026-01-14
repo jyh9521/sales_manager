@@ -10,6 +10,7 @@ interface ConfirmDialogProps {
     onCancel: () => void;
     confirmLabel?: string;
     cancelLabel?: string;
+    confirmColor?: 'inherit' | 'primary' | 'secondary' | 'success' | 'error' | 'info' | 'warning';
 }
 
 const ConfirmDialog = ({
@@ -19,7 +20,8 @@ const ConfirmDialog = ({
     onConfirm,
     onCancel,
     confirmLabel,
-    cancelLabel
+    cancelLabel,
+    confirmColor = 'error'
 }: ConfirmDialogProps) => {
     const { t } = useTranslation();
 
@@ -36,7 +38,7 @@ const ConfirmDialog = ({
                 <Button onClick={onCancel} color="inherit">
                     {cancelLabel || t('common.cancel', 'Cancel')}
                 </Button>
-                <Button onClick={onConfirm} variant="contained" color="error" autoFocus>
+                <Button onClick={onConfirm} variant="contained" color={confirmColor} autoFocus>
                     {confirmLabel || t('common.delete', 'Delete')}
                 </Button>
             </DialogActions>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Products from './pages/Products';
 import Clients from './pages/Clients';
 import Invoices from './pages/Invoices';
+import Estimates from './pages/Estimates';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
 import {
@@ -15,6 +16,7 @@ import {
   Inventory2 as InventoryIcon,
   Description as InvoiceIcon,
   Settings as SettingsIcon,
+  Assignment as EstimateIcon,
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { settingsService, defaultSettings } from './services/settings';
@@ -31,7 +33,15 @@ function App() {
       if (s.PrimaryColor) setPrimaryColor(s.PrimaryColor);
     };
     loadTheme();
-  }, [currentView]); // Re-check when view changes (simple way to catch updates if Settings saved)
+  }, [currentView]);
+
+  useEffect(() => {
+    const handleNavigation = (e: CustomEvent<string>) => {
+      setCurrentView(e.detail);
+    };
+    window.addEventListener('navigate-to', handleNavigation as EventListener);
+    return () => window.removeEventListener('navigate-to', handleNavigation as EventListener);
+  }, []);
 
 
 
@@ -52,6 +62,7 @@ function App() {
     { id: 'dashboard', icon: <DashboardIcon />, label: t('dashboard') },
     { id: 'clients', icon: <PeopleIcon />, label: t('clients') },
     { id: 'products', icon: <InventoryIcon />, label: t('products') },
+    { id: 'estimates', icon: <EstimateIcon />, label: t('estimates_title', 'Estimates') },
     { id: 'invoices', icon: <InvoiceIcon />, label: t('invoices') },
     { id: 'settings', icon: <SettingsIcon />, label: t('settings') }
   ];
@@ -60,6 +71,7 @@ function App() {
     switch (currentView) {
       case 'products': return <Products />;
       case 'clients': return <Clients />;
+      case 'estimates': return <Estimates />;
       case 'invoices': return <Invoices />;
       case 'settings': return <Settings />;
       case 'dashboard':
@@ -75,7 +87,7 @@ function App() {
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar>
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-              {t(currentView === 'dashboard' ? 'dashboard' : currentView === 'clients' ? 'clients' : currentView === 'products' ? 'products' : currentView === 'invoices' ? 'invoices' : 'settings')}
+              {t(currentView === 'dashboard' ? 'dashboard' : currentView === 'clients' ? 'clients' : currentView === 'products' ? 'products' : currentView === 'estimates' ? 'estimates_title' : currentView === 'invoices' ? 'invoices' : 'settings')}
             </Typography>
             <ToggleButtonGroup
               value={i18n.language}

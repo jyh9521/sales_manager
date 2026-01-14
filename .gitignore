@@ -27,3 +27,6 @@ release/
 # Database
 *.accdb
 *.bak
+
+#log
+tsc_output*.txt

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppSettings, defaultSettings, settingsService } from '../services/settings';
-import { Snackbar, Alert } from '@mui/material';
+import { Snackbar, Alert, Switch, Fab, Tooltip } from '@mui/material';
+import SaveIcon from '@mui/icons-material/Save';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const Settings = () => {
     const { t } = useTranslation();
     const [settings, setSettings] = useState<AppSettings>(defaultSettings);
-    const [status, setStatus] = useState('');
+    // const [status, setStatus] = useState('');
     const [backupStatus, setBackupStatus] = useState('');
 
     const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' | 'warning' }>({
@@ -37,14 +38,12 @@ const Settings = () => {
     const handleSave = async () => {
         try {
             await settingsService.save(settings);
-            setStatus(t('settings_save_success', 'Settings saved successfully!'));
-            setStatus(t('settings_save_success', 'Settings saved successfully! Reloading...'));
-            setTimeout(() => {
-                setStatus('');
-                window.location.reload(); // Reload to apply theme
-            }, 1000);
+            // setStatus(t('settings_save_success', 'Settings saved successfully!'));
+            showToast(t('settings_save_success', 'Settings saved successfully!'), 'success');
+            // Reload only if theme changed? For now, we rely on state updates or soft refresh if needed.
+            // window.location.reload(); // Removed to prevent jarring UX
         } catch (e) {
-            setStatus(t('settings_save_error', 'Error saving settings: ') + e);
+            showToast(t('settings_save_error', 'Error saving settings: ') + e, 'error');
         }
     };
 
@@ -95,7 +94,7 @@ const Settings = () => {
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto space-y-8">
+        <div className="p-6 max-w-4xl mx-auto space-y-8 pb-24"> {/* Added pb-24 for FAB space */}
             <h2 className="text-2xl font-bold text-gray-800">{t('settings', 'Settings')}</h2>
 
             {/* Company Info */}
@@ -260,34 +259,76 @@ const Settings = () => {
                     </div>
                 </div>
 
-                <div className="mt-6 flex justify-end items-center gap-4">
-                    {status && <span className="text-emerald-600 text-sm font-medium">{status}</span>}
-                    <button onClick={handleSave} className="btn-primary">{t('settings_save', 'Save Settings')}</button>
-                </div>
+                {/* Removed individual save button */}
             </div>
 
             {/* Data Management */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('settings_data_management', 'Data Management')}</h3>
-                <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div>
-                            <h4 className="font-bold text-gray-800">{t('settings_backup_db', 'Backup Database')}</h4>
-                            <p className="text-sm text-gray-500">{t('settings_backup_desc', 'Save a copy of your data (e.g. database-backup-YYYYMMDD.bak).')}</p>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-semibold text-gray-700">{t('settings_data_management', 'Data Management')}</h3>
+                    {/* Removed individual save button */}
+                </div>
+
+                <div className="space-y-6">
+                    {/* Auto Backup Section */}
+                    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                                    {t('settings_auto_backup', 'Automatic Backup')}
+                                    <span className="text-xs font-normal text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">On Close</span>
+                                </h4>
+                                <p className="text-sm text-gray-500 mt-1">{t('settings_auto_backup_desc', 'Automatically backup database when closing.')}</p>
+                            </div>
+                            <Switch
+                                checked={settings.AutoBackup || false}
+                                onChange={(e) => setSettings({ ...settings, AutoBackup: e.target.checked })}
+                                color="primary"
+                            />
                         </div>
-                        <button onClick={handleBackupSave} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors shadow">
-                            {t('settings_export_backup', 'Export Backup')}
-                        </button>
+
+                        {settings.AutoBackup && (
+                            <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                                <span className="text-sm font-semibold text-gray-600 whitespace-nowrap">{t('settings_backup_location', 'Location')}:</span>
+                                <code className="flex-1 text-xs bg-gray-100 p-1.5 rounded text-gray-700 break-all font-mono">
+                                    {settings.BackupPath || 'Default (User/Data/backups)'}
+                                </code>
+                                <button
+                                    onClick={async () => {
+                                        const path = await window.ipcRenderer.invoke('select-folder');
+                                        if (path) handleChange('BackupPath', path);
+                                    }}
+                                    className="text-xs bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded transition-colors"
+                                >
+                                    {t('settings_select_folder', 'Change')}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div>
-                            <h4 className="font-bold text-gray-800">{t('settings_restore_db', 'Restore Database')}</h4>
-                            <p className="text-sm text-gray-500">{t('settings_restore_desc', 'Restore data from a backup file (current data will be overwritten).')}</p>
+                    {/* Manual Operations */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Export */}
+                        <div className="border border-gray-200 rounded-xl p-4 flex flex-col justify-between hover:border-indigo-300 transition-colors">
+                            <div>
+                                <h4 className="font-semibold text-gray-800 text-sm mb-1">{t('settings_backup_db', 'Backup Database')}</h4>
+                                <p className="text-xs text-gray-500 mb-3">{t('settings_backup_desc', 'Save a copy of your data.')}</p>
+                            </div>
+                            <button onClick={handleBackupSave} className="w-full bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 py-2 rounded-lg text-sm font-medium transition-colors">
+                                {t('settings_export_backup', 'Export Backup')}
+                            </button>
                         </div>
-                        <button onClick={handleRestore} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition-colors shadow-sm">
-                            {t('settings_import_backup', 'Import Backup')}
-                        </button>
+
+                        {/* Import */}
+                        <div className="border border-gray-200 rounded-xl p-4 flex flex-col justify-between hover:border-orange-300 transition-colors">
+                            <div>
+                                <h4 className="font-semibold text-gray-800 text-sm mb-1">{t('settings_restore_db', 'Restore Database')}</h4>
+                                <p className="text-xs text-gray-500 mb-3">{t('settings_restore_desc', 'Restore data from backup.')}</p>
+                            </div>
+                            <button onClick={handleRestore} className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 py-2 rounded-lg text-sm font-medium transition-colors">
+                                {t('settings_import_backup', 'Import Backup')}
+                            </button>
+                        </div>
                     </div>
                 </div>
                 {backupStatus && (
@@ -310,21 +351,6 @@ const Settings = () => {
                     border-color: #6366f1;
                     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
                 }
-                .btn-primary {
-                    background-color: #4f46e5;
-                    color: white;
-                    padding: 0.5rem 1.5rem;
-                    border-radius: 0.5rem;
-                    font-weight: 500;
-                    transition: background-color 0.2s;
-                }
-                .btn-primary:hover {
-                    background-color: #4338ca;
-                }
-                .btn-primary:disabled {
-                    background-color: #9ca3af;
-                    cursor: not-allowed;
-                }
              `}</style>
             <ConfirmDialog
                 open={confirmDialog.open}
@@ -345,6 +371,27 @@ const Settings = () => {
                     {toast.message}
                 </Alert>
             </Snackbar>
+
+            {/* Floating Action Button for Global Save */}
+            <div className="fixed bottom-8 right-8 z-50">
+                <Tooltip title={t('settings_save', 'Save Settings')} arrow placement="left">
+                    <Fab
+                        color="primary"
+                        aria-label="save"
+                        onClick={handleSave}
+                        sx={{
+                            width: 64,
+                            height: 64,
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                            '&:hover': {
+                                transform: 'scale(1.05)',
+                            }
+                        }}
+                    >
+                        <SaveIcon sx={{ fontSize: 32 }} />
+                    </Fab>
+                </Tooltip>
+            </div>
         </div>
     );
 };
