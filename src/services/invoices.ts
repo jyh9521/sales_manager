@@ -34,7 +34,7 @@ export const invoiceService = {
         // Note: Access SQL syntax for limit/offset or standard joins is standard.
         // We order by ID DESC to show newest first.
         const sql = `
-            SELECT Invoices.ID, Invoices.ClientID, Invoices.InvoiceDate, Invoices.DueDate, Invoices.TotalAmount, Invoices.Status, Clients.Name as ClientName
+            SELECT Invoices.ID, Invoices.ClientID, Invoices.InvoiceDate, Invoices.DueDate, Invoices.TotalAmount, Invoices.Status, Invoices.Items, Clients.Name as ClientName
             FROM Invoices
             LEFT JOIN Clients ON Invoices.ClientID = Clients.ID
             ORDER BY Invoices.ID DESC
@@ -50,7 +50,7 @@ export const invoiceService = {
                 DueDate: r.DueDate,
                 TotalAmount: r.TotalAmount,
                 Status: r.Status || 'Unpaid',
-                Items: [] // getAll list usually doesn't need full items unless requested, main.ts handles items fetch on getOne
+                Items: r.Items ? JSON.parse(r.Items) : [] // Parse JSON items if available
             }));
         } catch (e) {
             console.error("Error fetching invoices:", e);
@@ -85,19 +85,20 @@ export const invoiceService = {
         const dateStr = new Date(invoice.InvoiceDate).toISOString().slice(0, 19).replace('T', ' ');
         // Status Update
         const status = invoice.Status || 'Unpaid';
+        const dueDateStr = invoice.DueDate ? `'${new Date(invoice.DueDate).toISOString().slice(0, 19).replace('T', ' ')}'` : 'NULL';
 
         let sql = '';
         if (invoice.ID) {
             // Check if ID exists first if needed, but here we assume it's for Manual ID insertion logic
             // Actually `create` now handles manual ID
             sql = `
-                INSERT INTO Invoices (ID, ClientID, InvoiceDate, TotalAmount, Status, Items)
-                VALUES (${invoice.ID}, ${invoice.ClientID}, '${dateStr}', ${invoice.TotalAmount}, '${status}', '${itemsJson}')
+                INSERT INTO Invoices (ID, ClientID, InvoiceDate, DueDate, TotalAmount, Status, Items)
+                VALUES (${invoice.ID}, ${invoice.ClientID}, '${dateStr}', ${dueDateStr}, ${invoice.TotalAmount}, '${status}', '${itemsJson}')
             `;
         } else {
             sql = `
-                INSERT INTO Invoices (ClientID, InvoiceDate, TotalAmount, Status, Items)
-                VALUES (${invoice.ClientID}, '${dateStr}', ${invoice.TotalAmount}, '${status}', '${itemsJson}')
+                INSERT INTO Invoices (ClientID, InvoiceDate, DueDate, TotalAmount, Status, Items)
+                VALUES (${invoice.ClientID}, '${dateStr}', ${dueDateStr}, ${invoice.TotalAmount}, '${status}', '${itemsJson}')
             `;
         }
 
@@ -112,11 +113,13 @@ export const invoiceService = {
         const itemsJson = JSON.stringify(invoice.Items).replace(/'/g, "''");
         const dateStr = new Date(invoice.InvoiceDate).toISOString().slice(0, 19).replace('T', ' ');
         const status = invoice.Status || 'Unpaid';
+        const dueDateStr = invoice.DueDate ? `'${new Date(invoice.DueDate).toISOString().slice(0, 19).replace('T', ' ')}'` : 'NULL';
 
         const sql = `
             UPDATE Invoices 
             SET ClientID=${invoice.ClientID}, 
                 InvoiceDate='${dateStr}', 
+                DueDate=${dueDateStr},
                 TotalAmount=${invoice.TotalAmount}, 
                 Status='${status}',
                 Items='${itemsJson}'

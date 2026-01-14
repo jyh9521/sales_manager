@@ -22,7 +22,7 @@ export const productService = {
             Project: r.Project || '',
             ClientIDs: r.ClientIDs ? r.ClientIDs.split(',').map((id: string) => Number(id)) : [],
             TaxRate: r.TaxRate || 10,
-            IsActive: r.IsActive !== 0 // Access returns 0 for False, non-zero for True usually
+            IsActive: Number(r.IsActive) !== 0 // Fix: Handle boolean false getting treated as true by !== 0 check
         }));
     },
 

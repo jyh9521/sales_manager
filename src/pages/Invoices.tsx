@@ -8,7 +8,7 @@ import { Unit, unitService } from '../services/units';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Button, TextField, IconButton, MenuItem, Box, Typography,
-    Grid, InputAdornment, Autocomplete, Dialog, Checkbox, Switch
+    Grid, InputAdornment, Autocomplete, Dialog, Checkbox, Switch, TablePagination
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -21,8 +21,16 @@ import {
     Edit as EditIcon
 } from '@mui/icons-material';
 import { Snackbar, Alert } from '@mui/material';
+import { createFilterOptions } from '@mui/material/Autocomplete';
 import ConfirmDialog from '../components/ConfirmDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
+
+const filterOptions = createFilterOptions({
+    stringify: (option: Product | string) => {
+        if (typeof option === 'string') return option;
+        return `${option.Name} ${option.Code || ''} ${option.Project || ''}`;
+    },
+});
 
 const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const { t } = useTranslation();
@@ -53,6 +61,15 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const [items, setItems] = useState<InvoiceItem[]>([]);
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<number>>(new Set());
 
+    // Pagination
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const handleChangePage = (event: unknown, newPage: number) => setPage(newPage);
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
+
     // Product Search
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -63,6 +80,20 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const [confirmDialog, setConfirmDialog] = useState<{ open: boolean, title?: string, message: string, onConfirm: () => void }>({
         open: false, message: '', onConfirm: () => { }
     });
+
+    // Unit Management
+    const [isUnitManagerOpen, setIsUnitManagerOpen] = useState(false);
+
+    const saveUnit = async (name: string) => {
+        if (!name || units.some(u => u.Name === name)) return;
+        try {
+            await unitService.add(name);
+            const updated = await unitService.getAll();
+            setUnits(updated);
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     const showToast = (message: string, severity: 'success' | 'error' = 'success') => {
         setToast({ open: true, message, severity });
@@ -140,10 +171,10 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
         if (action === 'update') {
             await invoiceService.update(newInvoice);
-            showToast(t('invoices_saved', 'Invoice updated successfully'));
+            showToast(t('invoices_update_success', 'Invoice updated successfully'));
         } else {
             await invoiceService.create(newInvoice);
-            showToast(t('invoices_saved', 'Invoice created successfully'));
+            showToast(t('invoices_create_success', 'Invoice created successfully'));
         }
 
         setIsCreateMode(false);
@@ -186,11 +217,17 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     };
 
     const addItem = (product?: Product) => {
-        // Logic to copy previous date
+        // Logic to copy previous date and unit
         let defaultDate = invoiceDate;
+        let defaultUnit = '';
         if (items.length > 0) {
             const last = items[items.length - 1];
             if (last.ItemDate) defaultDate = last.ItemDate;
+            if (last.Unit) {
+                defaultUnit = last.Unit;
+                // Auto-save the unit from the previous line if it's new
+                saveUnit(last.Unit);
+            }
         }
 
         const newItem: InvoiceItem = {
@@ -200,7 +237,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             UnitPrice: product?.UnitPrice || 0,
             Project: product?.Project,
             ItemDate: defaultDate,
-            Unit: '',
+            Unit: defaultUnit,
             Remarks: '',
             TaxRate: product?.TaxRate || 10
         };
@@ -419,7 +456,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         }, {} as Record<string, InvoiceItem[]>);
 
         const generalItems = groupedItems['GENERAL_NO_PROJECT'] || [];
-        const projects = Object.keys(groupedItems).filter(k => k !== 'GENERAL_NO_PROJECT');
+        const projects = Object.keys(groupedItems).filter(k => k !== 'GENERAL_NO_PROJECT').sort((a, b) => a.localeCompare(b, 'ja'));
 
         return (
             <div className="print-container bg-white text-black p-8 max-w-[210mm] mx-auto min-h-[297mm] relative text-sm">
@@ -704,7 +741,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1, minHeight: '80vh' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
                     <Typography variant="h5" fontWeight="bold">
-                        {editingInvoice ? `${t('invoices_edit', 'Edit Invoice')} #${String(editingInvoice.ID).padStart(8, '0')} ` : t('invoices_create_title', 'Create New Invoice')}
+                        {editingInvoice ? `${t('common.invoices_edit', 'Edit Invoice')} #${String(editingInvoice.ID).padStart(8, '0')} ` : t('invoices_create_title', 'Create New Invoice')}
                     </Typography>
                     <Button
                         onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }}
@@ -731,6 +768,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             >
                                 <MenuItem value="Unpaid">{t('status_unpaid', 'Unsent')}</MenuItem>
                                 <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
+                                <MenuItem value="Paid">{t('status_paid', 'Paid')}</MenuItem>
                             </TextField>
                         </Grid>
                     )}
@@ -797,7 +835,14 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                     <TableCell width="250">{t('products_name', 'Product')}</TableCell>
                                     <TableCell width="100">{t('invoices_unit_price', 'Unit Price')}</TableCell>
                                     <TableCell width="80">{t('invoices_quantity', 'Qty')}</TableCell>
-                                    <TableCell width="100">{t('invoices_unit', 'Unit')}</TableCell>
+                                    <TableCell width="120">
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            {t('invoices_unit', 'Unit')}
+                                            <IconButton size="small" onClick={() => setIsUnitManagerOpen(true)}>
+                                                <EditIcon sx={{ fontSize: 14 }} />
+                                            </IconButton>
+                                        </Box>
+                                    </TableCell>
                                     <TableCell align="right" width="120">{t('invoices_total', 'Total')}</TableCell>
                                     <TableCell>{t('invoices_remarks', 'Remarks')}</TableCell>
                                     <TableCell width="50"></TableCell>
@@ -817,13 +862,54 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <TextField
-                                                fullWidth
-                                                variant="standard"
-                                                placeholder={t('products_name', 'Product Name')}
-                                                InputProps={{ disableUnderline: true }}
+                                            <Autocomplete
+                                                freeSolo
+                                                options={availableProducts}
+                                                getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name}`}
+                                                filterOptions={filterOptions}
                                                 value={item.ProductName}
-                                                onChange={(e: any) => updateItem(idx, 'ProductName', e.target.value)}
+                                                onChange={(_, newValue) => {
+                                                    if (typeof newValue !== 'string' && newValue) {
+                                                        const newItems = [...items];
+                                                        newItems[idx] = {
+                                                            ...newItems[idx],
+                                                            ProductID: newValue.ID,
+                                                            ProductName: newValue.Name,
+                                                            UnitPrice: newValue.UnitPrice,
+                                                            TaxRate: newValue.TaxRate || 10,
+                                                            Project: newValue.Project
+                                                        };
+                                                        setItems(newItems);
+                                                    } else if (typeof newValue === 'string') {
+                                                        updateItem(idx, 'ProductName', newValue);
+                                                    }
+                                                }}
+                                                onInputChange={(_, newInputValue) => {
+                                                    // Only update name on typing if it's not a selection event (handled by onChange usually, but needed for clearing/typing)
+                                                    updateItem(idx, 'ProductName', newInputValue);
+                                                }}
+                                                renderOption={(props, option) => {
+                                                    const prod = option as Product;
+                                                    return (
+                                                        <li {...props} key={prod.ID}>
+                                                            <Box>
+                                                                <Typography variant="body2">{prod.Name}</Typography>
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    {prod.Project ? `${prod.Project} - ` : ''}{prod.Code} - ¥{prod.UnitPrice}
+                                                                </Typography>
+                                                            </Box>
+                                                        </li>
+                                                    );
+                                                }}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                        {...params}
+                                                        fullWidth
+                                                        variant="standard"
+                                                        placeholder={t('products_name', 'Product Name')}
+                                                        InputProps={{ ...params.InputProps, disableUnderline: true }}
+                                                    />
+                                                )}
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -978,6 +1064,62 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         </Box>
                     </Box>
                 </Box>
+
+
+                {/* Shared Dialogs for Create Mode */}
+                <Dialog open={isUnitManagerOpen} onClose={() => setIsUnitManagerOpen(false)} maxWidth="xs" fullWidth>
+                    <Box sx={{ p: 2 }}>
+                        <Typography variant="h6" gutterBottom>{t('unit_manage', 'Manage Units')}</Typography>
+                        <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                            {units.length === 0 ? <Typography variant="body2" color="text.secondary">No saved units.</Typography> : (
+                                units.map(u => (
+                                    <Box key={u.ID} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: '1px solid #eee' }}>
+                                        <Typography>{u.Name}</Typography>
+                                        <IconButton size="small" color="error" onClick={() => {
+                                            setConfirmDialog({
+                                                open: true,
+                                                title: t('common.delete', 'Delete Unit'),
+                                                message: `Delete unit "${u.Name}"?`,
+                                                onConfirm: async () => {
+                                                    await unitService.delete(u.ID);
+                                                    const updated = await unitService.getAll();
+                                                    setUnits(updated);
+                                                    setConfirmDialog(p => ({ ...p, open: false }));
+                                                }
+                                            });
+                                        }}>
+                                            <DeleteIcon fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+                                ))
+                            )}
+                        </Box>
+                        <Box sx={{ mt: 2, textAlign: 'right' }}>
+                            <Button onClick={() => setIsUnitManagerOpen(false)}>{t('common.close', 'Close')}</Button>
+                        </Box>
+                    </Box>
+                </Dialog>
+
+                <ConfirmDialog
+                    open={confirmDialog.open}
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                />
+
+                <Snackbar
+                    open={toast.open}
+                    autoHideDuration={3000}
+                    onClose={handleCloseToast}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                    <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%' }}>
+                        {toast.message}
+                    </Alert>
+                </Snackbar>
+
+                <LoadingOverlay open={loading} />
             </Box >
         );
     }
@@ -1011,7 +1153,6 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         <MenuItem value="All">{t('common.all', 'All')}</MenuItem>
                         <MenuItem value="Unpaid">{t('status_unpaid', 'Unpaid')}</MenuItem>
                         <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
-                        <MenuItem value="Paid">{t('status_paid', 'Paid')}</MenuItem>
                     </TextField>
                     <TextField
                         type="month"
@@ -1068,89 +1209,112 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {sortedInvoices.map((invoice) => (
-                            <TableRow
-                                key={invoice.ID}
-                                hover
-                                onClick={() => setViewInvoice(invoice)}
-                                sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
-                                selected={selectedInvoiceIds.has(invoice.ID)}
-                            >
-                                <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                                    <Checkbox
-                                        checked={selectedInvoiceIds.has(invoice.ID)}
-                                        onChange={(e: any) => {
-                                            const newSet = new Set(selectedInvoiceIds);
-                                            if (e.target.checked) newSet.add(invoice.ID);
-                                            else newSet.delete(invoice.ID);
-                                            setSelectedInvoiceIds(newSet);
-                                        }}
-                                    />
-                                </TableCell>
-                                <TableCell component="th" scope="row" sx={{ fontFamily: 'monospace' }}>
-                                    {new Date(invoice.InvoiceDate).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-                                    #{String(invoice.ID).padStart(8, '0')}
-                                </TableCell>
-                                {!filterClientId && (
-                                    <TableCell sx={{ fontWeight: 500 }}>
-                                        {clients.find(c => c.ID === invoice.ClientID)?.Name || 'Unknown'}
-                                    </TableCell>
-                                )}
-                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                    ¥{invoice.TotalAmount.toLocaleString()}
-                                </TableCell>
-                                <TableCell>
-
-                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <Typography variant="caption" sx={{ mr: 1, color: invoice.Status === 'Sent' ? 'text.secondary' : 'error.main', fontWeight: 'bold' }}>
-                                            {invoice.Status === 'Sent' ? t('status_sent', 'Sent') : t('status_unpaid', 'Unsent')}
-                                        </Typography>
-                                        <Switch
-                                            size="small"
-                                            checked={invoice.Status === 'Sent'}
-                                            onChange={async (e: any) => {
-                                                const newStatus = e.target.checked ? 'Sent' : 'Unpaid';
-                                                const updated = { ...invoice, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' };
-                                                await invoiceService.update(updated);
-                                                const updatedList = await invoiceService.getAll();
-                                                setInvoices(updatedList);
-                                            }}
-                                            color="primary"
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                    </Box>
-                                </TableCell>
-                                <TableCell align="right">
-                                    <Button
-                                        size="small"
-                                        startIcon={<VisibilityIcon />}
-                                        onClick={(e) => { e.stopPropagation(); setViewInvoice(invoice); }}
-                                        sx={{ mr: 1 }}
-                                    >
-                                        {t('common.view', 'View')}
-                                    </Button>
-                                    <IconButton
-                                        size="small"
-                                        color="error"
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(invoice.ID); }}
-                                    >
-                                        <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {sortedInvoices.length === 0 && (
+                        {sortedInvoices.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                                     {t('invoices_no_invoices', 'No invoices found.')}
                                 </TableCell>
                             </TableRow>
-                        )}
+                        ) : (
+                            sortedInvoices
+                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                .map((invoice) => (
+                                    <TableRow
+                                        key={invoice.ID}
+                                        hover
+                                        onClick={() => setViewInvoice(invoice)}
+                                        sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
+                                        selected={selectedInvoiceIds.has(invoice.ID)}
+                                    >
+                                        <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                                            <Checkbox
+                                                checked={selectedInvoiceIds.has(invoice.ID)}
+                                                onChange={(e: any) => {
+                                                    const newSet = new Set(selectedInvoiceIds);
+                                                    if (e.target.checked) newSet.add(invoice.ID);
+                                                    else newSet.delete(invoice.ID);
+                                                    setSelectedInvoiceIds(newSet);
+                                                }}
+                                            />
+                                        </TableCell>
+                                        <TableCell component="th" scope="row" sx={{ fontFamily: 'monospace' }}>
+                                            {new Date(invoice.InvoiceDate).toLocaleDateString()}
+                                        </TableCell>
+                                        <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                                            #{String(invoice.ID).padStart(8, '0')}
+                                        </TableCell>
+                                        {!filterClientId && (
+                                            <TableCell sx={{ fontWeight: 500 }}>
+                                                {((invoice.Items && invoice.Items.length > 0 && invoice.Items[0].Project) || clients.find(c => c.ID === invoice.ClientID)?.Name || 'Unknown')}
+                                            </TableCell>
+                                        )}
+                                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                            ¥{invoice.TotalAmount.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <Typography variant="caption" sx={{ mr: 1, color: invoice.Status === 'Sent' ? 'text.secondary' : 'error.main', fontWeight: 'bold' }}>
+                                                    {invoice.Status === 'Sent' ? t('status_sent', 'Sent') : t('status_unpaid', 'Unsent')}
+                                                </Typography>
+                                                <Switch
+                                                    size="small"
+                                                    checked={invoice.Status === 'Sent'}
+                                                    onChange={async (e: any) => {
+                                                        const newStatus = e.target.checked ? 'Sent' : 'Unpaid';
+
+                                                        // Optimistic update
+                                                        setInvoices(prev => prev.map(inv => inv.ID === invoice.ID ? { ...inv, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' } : inv));
+
+                                                        try {
+                                                            const updated = { ...invoice, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' };
+                                                            await invoiceService.update(updated);
+                                                            // No re-fetch to prevent jump
+                                                        } catch (err) {
+                                                            // Revert on error
+                                                            setInvoices(prev => prev.map(inv => inv.ID === invoice.ID ? invoice : inv));
+                                                            console.error("Status update failed", err);
+                                                        }
+                                                    }}
+                                                    color="primary"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <Button
+                                                size="small"
+                                                startIcon={<VisibilityIcon />}
+                                                onClick={(e) => { e.stopPropagation(); setViewInvoice(invoice); }}
+                                                sx={{ mr: 1 }}
+                                            >
+                                                {t('common.view', 'View')}
+                                            </Button>
+                                            <IconButton
+                                                size="small"
+                                                color="error"
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(invoice.ID); }}
+                                            >
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                )))}
+
                     </TableBody>
                 </Table>
             </TableContainer>
+            <TablePagination
+                rowsPerPageOptions={[10, 25, 50]}
+                component="div"
+                count={sortedInvoices.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage={t('rows_per_page')}
+                labelDisplayedRows={({ from, to, count }) => t('page_info', { from, to, count })}
+            />
 
             {/* Invoice Preview Modal */}
             {viewInvoice && (
@@ -1251,6 +1415,42 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     </Box>
                 </Dialog>
             )}
+
+
+
+            {/* Unit Manager Dialog */}
+            <Dialog open={isUnitManagerOpen} onClose={() => setIsUnitManagerOpen(false)} maxWidth="xs" fullWidth>
+                <Box sx={{ p: 2 }}>
+                    <Typography variant="h6" gutterBottom>{t('unit_manage', 'Manage Units')}</Typography>
+                    <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                        {units.length === 0 ? <Typography variant="body2" color="text.secondary">No saved units.</Typography> : (
+                            units.map(u => (
+                                <Box key={u.ID} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: '1px solid #eee' }}>
+                                    <Typography>{u.Name}</Typography>
+                                    <IconButton size="small" color="error" onClick={() => {
+                                        setConfirmDialog({
+                                            open: true,
+                                            title: t('common.delete', 'Delete Unit'),
+                                            message: `Delete unit "${u.Name}"?`,
+                                            onConfirm: async () => {
+                                                await unitService.delete(u.ID);
+                                                const updated = await unitService.getAll();
+                                                setUnits(updated);
+                                                setConfirmDialog(p => ({ ...p, open: false }));
+                                            }
+                                        });
+                                    }}>
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Box>
+                            ))
+                        )}
+                    </Box>
+                    <Box sx={{ mt: 2, textAlign: 'right' }}>
+                        <Button onClick={() => setIsUnitManagerOpen(false)}>{t('common.close', 'Close')}</Button>
+                    </Box>
+                </Box>
+            </Dialog>
 
             <ConfirmDialog
                 open={confirmDialog.open}

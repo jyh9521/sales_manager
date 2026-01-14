@@ -11,6 +11,8 @@
         "save": "Save",
         "cancel": "Cancel",
         "edit": "Edit",
+        "all": "All",
+        "invoices_edit": "Edit Invoice",
         "delete": "Delete",
         "add": "Add",
         "save_as_new": "Save as New",
@@ -23,7 +25,9 @@
         "success": "Success",
         "confirm_delete": "Are you sure you want to delete?",
         "view": "View",
-        "confirm": "Confirm"
+        "confirm": "Confirm",
+        "restore": "Restore",
+        "select_file": "Select File"
     },
     "status_unpaid": "Not Sent",
     "status_paid": "Paid",
@@ -207,5 +211,11 @@
     "invoices_btn_csv": "CSV",
     "invoices_btn_print": "Print",
     "invoices_btn_edit": "Edit",
-    "invoices_btn_close": "Close"
+    "invoices_btn_close": "Close",
+    "invoices_no_invoices": "No invoices found.",
+    "invoices_create_success": "Invoice created successfully",
+    "invoices_update_success": "Invoice updated successfully",
+    "unit_manage": "Manage Units",
+    "rows_per_page": "Rows per page:",
+    "page_info": "{{from}}-{{to}} of {{count}}"
 }

@@ -90,9 +90,6 @@ async function createSchema() {
         UnitPrice CURRENCY,
         ClientIDs MEMO,
         Project VARCHAR(255),
-        UnitPrice CURRENCY,
-        ClientIDs MEMO,
-        Project VARCHAR(255),
         TaxRate INT DEFAULT 10,
         IsActive BIT DEFAULT 1
       )
@@ -143,6 +140,11 @@ async function createSchema() {
     // Add ExampleField column if missing
     try {
       await connection.execute(`ALTER TABLE Invoices ADD COLUMN ExampleField MEMO`);
+    } catch (e) { /* Column likely exists */ }
+
+    // Add Items column if missing (for JSON storage)
+    try {
+      await connection.execute(`ALTER TABLE Invoices ADD COLUMN Items MEMO`);
     } catch (e) { /* Column likely exists */ }
 
     // Add Project column if missing

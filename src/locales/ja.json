@@ -11,6 +11,8 @@
     "save": "保存",
     "cancel": "キャンセル",
     "edit": "編集",
+    "all": "すべて",
+    "invoices_edit": "請求書編集",
     "delete": "削除",
     "add": "追加",
     "save_as_new": "新規として保存",
@@ -23,7 +25,9 @@
     "success": "成功",
     "confirm_delete": "本当に削除してもよろしいですか？",
     "view": "表示",
-    "confirm": "確認"
+    "confirm": "確認",
+    "restore": "復元",
+    "select_file": "ファイルを選択"
   },
   "status_unpaid": "未送付",
   "status_paid": "支払済",
@@ -207,5 +211,11 @@
   "invoices_btn_csv": "CSV",
   "invoices_btn_print": "印刷",
   "invoices_btn_edit": "編集",
-  "invoices_btn_close": "閉じる"
+  "invoices_btn_close": "閉じる",
+  "invoices_no_invoices": "請求書が見つかりません。",
+  "invoices_create_success": "請求書を作成しました",
+  "invoices_update_success": "請求書を更新しました",
+  "unit_manage": "単位管理",
+  "rows_per_page": "ページあたりの行数:",
+  "page_info": "{{from}}–{{to}} / {{count}}"
 }

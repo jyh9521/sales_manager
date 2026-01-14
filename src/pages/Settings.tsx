@@ -13,7 +13,7 @@ const Settings = () => {
     const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' | 'warning' }>({
         open: false, message: '', severity: 'info'
     });
-    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean, title?: string, message: string, onConfirm: () => void }>({
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean, title?: string, message: string, onConfirm: () => void, confirmLabel?: string, cancelLabel?: string }>({
         open: false, message: '', onConfirm: () => { }
     });
 
@@ -73,6 +73,7 @@ const Settings = () => {
             open: true,
             title: t('settings_restore_title', 'Restore Backup'),
             message: t('settings_restore_confirm_msg', 'CAUTION: This will overwrite your current data with the backup file.\n\nThe application will create a safety copy of current data before restoring.\n\nContinue?'),
+            confirmLabel: t('common.restore', 'Restore'),
             onConfirm: async () => {
                 setConfirmDialog(prev => ({ ...prev, open: false }));
                 setBackupStatus(t('settings_restoring', 'Restoring...'));
@@ -109,9 +110,9 @@ const Settings = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_zip_code', 'Zip Code')}</label>
                         <div className="flex items-center gap-2">
                             <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all bg-white relative">
-                                <span className="pl-3 pr-1 text-gray-500 font-medium select-none">〒</span>
+
                                 <input
-                                    className="p-2 outline-none w-24 text-gray-700 placeholder-gray-300"
+                                    className="p-2 outline-none w-32 text-gray-700 placeholder-gray-300"
                                     value={settings.ZipCode}
                                     maxLength={7}
                                     placeholder="0000000"
@@ -197,21 +198,24 @@ const Settings = () => {
                             {settings.Logo && (
                                 <img src={settings.Logo} alt="Logo" className="h-12 w-auto object-contain border rounded p-1" />
                             )}
-                            <input
-                                type="file"
-                                accept="image/*"
-                                className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
-                                onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => {
-                                            handleChange('Logo', reader.result as string);
-                                        };
-                                        reader.readAsDataURL(file);
-                                    }
-                                }}
-                            />
+                            <label className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-indigo-100 transition-all cursor-pointer inline-block">
+                                {t('common.select_file', 'Select File')}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                                handleChange('Logo', reader.result as string);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                />
+                            </label>
                         </div>
                         <p className="text-xs text-gray-400 mt-1">{t('settings_logo_hint', 'Recommended: Transparent PNG, max 200px width.')}</p>
                     </div>
@@ -328,6 +332,8 @@ const Settings = () => {
                 message={confirmDialog.message}
                 onConfirm={confirmDialog.onConfirm}
                 onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                confirmLabel={confirmDialog.confirmLabel}
+                cancelLabel={confirmDialog.cancelLabel}
             />
             <Snackbar
                 open={toast.open}

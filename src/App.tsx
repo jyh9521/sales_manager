@@ -101,16 +101,9 @@ function App() {
         >
           <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
             <Box sx={{
-              width: 40,
-              height: 40,
-              bgcolor: 'primary.main',
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               color: 'white',
               fontWeight: 'bold',
-              boxShadow: 2
+              // boxShadow: 2 // Removed as requested
             }}>S</Box>
             <Typography variant="h6" noWrap component="div" fontWeight="bold">
               SalesManager
@@ -147,34 +140,7 @@ function App() {
         </Drawer>
 
         {/* Main Layout */}
-        <Box component="main" sx={{ flexGrow: 1, height: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {/* Header AppBar */}
-          <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'white', borderBottom: '1px solid rgba(0,0,0,0.08)', color: 'text.primary' }}>
-            <Toolbar>
-              <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, textTransform: 'capitalize', fontWeight: 500 }}>
-                {t(currentView)}
-              </Typography>
-
-              <ToggleButtonGroup
-                value={i18n.language}
-                exclusive
-                onChange={changeLanguage}
-                size="small"
-                aria-label="language"
-              >
-                <ToggleButton value="ja">
-                  JA
-                </ToggleButton>
-                <ToggleButton value="en">
-                  EN
-                </ToggleButton>
-                <ToggleButton value="zh">
-                  ZH
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Toolbar>
-          </AppBar>
-
+        <Box component="main" sx={{ flexGrow: 1, height: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column', pt: 8 }}>
           <Box sx={{ flexGrow: 1, p: 0 }}>
             {renderContent()}
           </Box>

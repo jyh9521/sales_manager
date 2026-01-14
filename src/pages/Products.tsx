@@ -14,7 +14,8 @@ import {
     Add as AddIcon,
     Search as SearchIcon,
     Edit as EditIcon,
-    Delete as DeleteIcon
+    Delete as DeleteIcon,
+    Clear as ClearIcon
 } from '@mui/icons-material';
 
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -285,6 +286,17 @@ const Products = () => {
                                     <SearchIcon color="action" />
                                 </InputAdornment>
                             ),
+                            endAdornment: searchTerm && (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => setSearchTerm('')}
+                                        edge="end"
+                                    >
+                                        <ClearIcon fontSize="small" />
+                                    </IconButton>
+                                </InputAdornment>
+                            )
                         }}
                         sx={{ width: 250, bgcolor: 'background.paper' }}
                     />
@@ -360,7 +372,7 @@ const Products = () => {
                     <TableHead sx={{ bgcolor: 'grey.50' }}>
                         <TableRow>
                             {[
-                                { key: 'Code', label: t('products_code_header', 'Code'), width: 100 },
+                                { key: 'Code', label: t('products_code_header', 'Code'), width: 140 },
                                 { key: 'Name', label: t('products_name', 'Product Info') },
                                 { key: 'Project', label: t('products_category', 'Project') },
                                 { key: 'UnitPrice', label: t('products_price', 'Price'), align: 'right' },
@@ -393,7 +405,7 @@ const Products = () => {
                                 hover
                                 sx={{ opacity: product.IsActive ? 1 : 0.6 }}
                             >
-                                <TableCell sx={{ fontFamily: 'monospace' }}>{product.Code || '-'}</TableCell>
+                                <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{product.Code || '-'}</TableCell>
                                 <TableCell>
                                     <Typography variant="subtitle2">{product.Name}</Typography>
                                     <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
@@ -401,7 +413,16 @@ const Products = () => {
                                     </Typography>
                                 </TableCell>
                                 <TableCell>
-                                    {product.Project ? <Chip label={product.Project} size="small" color="primary" variant="outlined" /> : '-'}
+                                    {product.Project ? (
+                                        <Chip
+                                            label={product.Project}
+                                            size="small"
+                                            color="primary"
+                                            variant="outlined"
+                                            onClick={() => setSearchTerm(product.Project || '')}
+                                            sx={{ cursor: 'pointer' }}
+                                        />
+                                    ) : '-'}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
                                     {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
@@ -436,6 +457,8 @@ const Products = () => {
                 page={page}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage={t('rows_per_page')}
+                labelDisplayedRows={({ from, to, count }) => t('page_info', { from, to, count })}
             />
 
             {/* Product Edit Modal */}

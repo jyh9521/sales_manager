@@ -11,6 +11,8 @@
         "save": "保存",
         "cancel": "取消",
         "edit": "编辑",
+        "all": "全部",
+        "invoices_edit": "编辑请求书",
         "delete": "删除",
         "add": "添加",
         "save_as_new": "另存为新请求书",
@@ -23,7 +25,9 @@
         "success": "操作成功",
         "confirm_delete": "确定要删除吗？",
         "view": "查看",
-        "confirm": "确认"
+        "confirm": "确认",
+        "restore": "恢复",
+        "select_file": "选择文件"
     },
     "status_unpaid": "未发送",
     "status_paid": "已付款",
@@ -207,5 +211,11 @@
     "invoices_btn_csv": "CSV",
     "invoices_btn_print": "打印",
     "invoices_btn_edit": "编辑",
-    "invoices_btn_close": "关闭"
+    "invoices_btn_close": "关闭",
+    "invoices_no_invoices": "未找到请求书。",
+    "invoices_create_success": "请求书创建成功",
+    "invoices_update_success": "请求书更新成功",
+    "unit_manage": "管理单位",
+    "rows_per_page": "每页行数:",
+    "page_info": "{{from}}-{{to}} / {{count}}"
 }

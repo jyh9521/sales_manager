@@ -141,6 +141,8 @@ const Dashboard = () => {
                                 <XAxis dataKey="name" stroke={theme.palette.text.secondary} />
                                 <YAxis stroke={theme.palette.text.secondary} />
                                 <Tooltip
+                                    formatter={(value: number | undefined) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
+                                    labelFormatter={(label) => `${label}`}
                                     contentStyle={{
                                         backgroundColor: theme.palette.background.paper,
                                         border: `1px solid ${theme.palette.divider}`,
@@ -199,6 +201,7 @@ const Dashboard = () => {
                                 <YAxis dataKey="name" type="category" width={100} stroke={theme.palette.text.secondary} />
                                 <Tooltip
                                     cursor={{ fill: theme.palette.action.hover }}
+                                    formatter={(value: number | undefined) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
                                     contentStyle={{
                                         backgroundColor: theme.palette.background.paper,
                                         borderRadius: 8

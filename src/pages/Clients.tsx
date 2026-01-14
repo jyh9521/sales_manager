@@ -303,6 +303,8 @@ const Clients = () => {
                 page={page}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage={t('rows_per_page')}
+                labelDisplayedRows={({ from, to, count }) => t('page_info', { from, to, count })}
             />
 
             {/* Edit Modal */}
