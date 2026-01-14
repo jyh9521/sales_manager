@@ -15,7 +15,7 @@ export const projectService = {
             const cleanName = name.replace(/'/g, "''");
             await execute(`INSERT INTO Projects (Name) VALUES ('${cleanName}')`);
         } catch (e) {
-            // Ignore duplicates usually, but could log
+            // 通常忽略重复项，但可以记录
             console.log('Project add failed (maybe duplicate):', e);
         }
     },
@@ -28,10 +28,10 @@ export const projectService = {
         const cleanNew = newName.replace(/'/g, "''");
         const cleanOld = oldName.replace(/'/g, "''");
 
-        // 1. Update dictionary
+        // 1. 更新字典
         await execute(`UPDATE Projects SET Name='${cleanNew}' WHERE ID=${id}`);
 
-        // 2. Cascade update products
+        // 2. 级联更新产品
         await execute(`UPDATE Products SET Project='${cleanNew}' WHERE Project='${cleanOld}'`);
     }
 };

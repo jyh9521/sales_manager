@@ -1,18 +1,18 @@
-import { query, execute } from './api';
+import { query } from './api';
 
 export interface InvoiceItem {
     ID?: number;
-    InvoiceID?: number; // Optional on creation
+    InvoiceID?: number; // 创建时可选
     ProductID: number;
     Quantity: number;
     UnitPrice: number;
     Unit?: string;
-    ItemDate?: string; // Date string YYYY-MM-DD
+    ItemDate?: string; // 日期字符串 YYYY-MM-DD
     Remarks?: string;
     Project?: string;
     TaxRate?: number;
 
-    // UI Helpers
+    // UI 辅助字段
     ProductName?: string;
     ProductCode?: string;
 }
@@ -20,7 +20,7 @@ export interface InvoiceItem {
 export interface Invoice {
     ID: number;
     ClientID: number;
-    ClientName?: string; // For display, joined from Clients table
+    ClientName?: string; // 用于显示，从 Clients 表连接
     InvoiceDate: string;
     DueDate?: string;
     TotalAmount: number;
@@ -30,9 +30,9 @@ export interface Invoice {
 
 export const invoiceService = {
     async getAll(): Promise<Invoice[]> {
-        // Left Join to get Client Name
-        // Note: Access SQL syntax for limit/offset or standard joins is standard.
-        // We order by ID DESC to show newest first.
+        // 左连接获取客户名称
+        // 注意：Access SQL 语法对于 limit/offset 或标准连接是标准的。
+        // 我们按 ID 倒序排列以优先显示最新的。
         const sql = `
             SELECT Invoices.ID, Invoices.ClientID, Invoices.InvoiceDate, Invoices.DueDate, Invoices.TotalAmount, Invoices.Status, Invoices.Items, Clients.Name as ClientName
             FROM Invoices
@@ -46,11 +46,11 @@ export const invoiceService = {
                 ID: r.ID,
                 ClientID: r.ClientID,
                 ClientName: r.ClientName || 'Unknown Client',
-                InvoiceDate: r.InvoiceDate, // Access might return date object or string, handle accordingly in UI
+                InvoiceDate: r.InvoiceDate, // Access 可能返回日期对象或字符串，在 UI 中相应处理
                 DueDate: r.DueDate,
                 TotalAmount: r.TotalAmount,
                 Status: r.Status || 'Unpaid',
-                Items: r.Items ? JSON.parse(r.Items) : [] // Parse JSON items if available
+                Items: r.Items ? JSON.parse(r.Items) : [] // 如果可用，解析 JSON 项目
             }));
         } catch (e) {
             console.error("Error fetching invoices:", e);
@@ -59,7 +59,7 @@ export const invoiceService = {
     },
 
     async create(invoice: any): Promise<number> {
-        // Use main process handler which includes Inventory Logic
+        // 使用包含库存逻辑的主进程处理程序
         const result = await window.ipcRenderer.invoke('save-invoice', invoice);
         if (!result.success) {
             throw new Error(result.error || 'Failed to create invoice');
@@ -68,7 +68,7 @@ export const invoiceService = {
     },
 
     async update(invoice: Invoice): Promise<void> {
-        // Use main process handler which includes Inventory Logic
+        // 使用包含库存逻辑的主进程处理程序
         const result = await window.ipcRenderer.invoke('save-invoice', invoice);
         if (!result.success) {
             throw new Error(result.error || 'Failed to update invoice');
@@ -76,7 +76,7 @@ export const invoiceService = {
     },
 
     async delete(id: number): Promise<void> {
-        // Use main process handler which includes Inventory restoration logic
+        // 使用包含库存恢复逻辑的主进程处理程序
         const result = await window.ipcRenderer.invoke('delete-invoice', id);
         if (!result.success) {
             throw new Error(result.error || 'Failed to delete invoice');

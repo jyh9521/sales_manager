@@ -4,8 +4,8 @@ import fs from 'fs';
 import { app } from 'electron';
 import { execSync } from 'child_process';
 
-// Get the path to the database file
-// In production, use userData. In dev, project root.
+// 获取数据库文件路径
+// 在生产环境中，使用 userData。在开发中，使用项目根目录。
 const isPackaged = app.isPackaged;
 const DB_PATH = isPackaged
   ? path.join(app.getPath('userData'), 'sales.accdb')
@@ -13,11 +13,11 @@ const DB_PATH = isPackaged
 
 console.log('Database Path:', DB_PATH);
 
-// Initialize ADODB connection
-// Use 'Microsoft.ACE.OLEDB.12.0' for .accdb
+// 初始化 ADODB 连接
+// 对于 .accdb 使用 'Microsoft.ACE.OLEDB.12.0'
 const rawConnection = ADODB.open(`Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${DB_PATH};Persist Security Info=False;`, true);
 
-// Wrapper to retry operations on "spawn" errors (common with rapid cscript calls)
+// 包装器，用于在 "spawn" 错误 (Cscript 快速调用时常见) 上重试操作
 const connection = {
   async query(sql: string): Promise<any> {
     const maxRetries = 3;
@@ -27,7 +27,7 @@ const connection = {
         return await rawConnection.query(sql);
       } catch (e: any) {
         lastError = e;
-        // Retry only on spawn-related errors or generic process failures
+        // 仅在 spawn 相关错误或通用进程失败时重试
         if (e.message && (e.message.includes('Spawn') || e.message.includes('process'))) {
           console.warn(`Retry ${i + 1}/${maxRetries} for SQL: ${sql.substring(0, 50)}...`);
           await new Promise(r => setTimeout(r, 200 * (i + 1))); // Incremental backoff
@@ -39,8 +39,8 @@ const connection = {
     throw lastError;
   },
   async execute(sql: string): Promise<any> {
-    // Retries on EXECUTE caused duplicate inserts because 'Spawn Error' was false positive.
-    // We must NOT retry non-idempotent commands blindly.
+    // EXECUTE 上的重试导致重复插入，因为 'Spawn Error' 是误报。
+    // 我们绝对不能盲目重试非幂等命令。
     try {
       return await rawConnection.execute(sql);
     } catch (e: any) {
@@ -58,8 +58,8 @@ export async function initDB() {
   if (!fs.existsSync(DB_PATH)) {
     console.log('Creating new Access database...');
     try {
-      // Use PowerShell/ADOX to create the .accdb file
-      // This requires the machine to have Access drivers installed.
+      // 使用 PowerShell/ADOX 创建 .accdb 文件
+      // 这需要机器上安装了 Access 驱动程序。
       const cmd = `$catalog = New-Object -ComObject ADOX.Catalog; $catalog.Create('Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${DB_PATH}');`;
       execSync(`powershell -Command "${cmd}"`);
       console.log('Database file created successfully.');
@@ -71,13 +71,13 @@ export async function initDB() {
     console.log('Database already exists.');
   }
 
-  // Ensure schema and migrations are applied to both new and existing databases
+  // 确保架构和迁移应用于新数据库和现有数据库
   await createSchema();
 }
 
 async function createSchema() {
   try {
-    // Settings Table
+    // 设置表
     await rawConnection.execute(`
       CREATE TABLE Settings (
         SettingKey VARCHAR(255) PRIMARY KEY,
@@ -85,7 +85,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // Clients Table
+    // 客户表
     await rawConnection.execute(`
       CREATE TABLE Clients (
         ID AUTOINCREMENT PRIMARY KEY,
@@ -96,7 +96,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // Projects Table (New)
+    // 项目表 (新增)
     await rawConnection.execute(`
       CREATE TABLE Projects (
         ID AUTOINCREMENT PRIMARY KEY,
@@ -104,7 +104,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // Units Table (New)
+    // 单位表 (新增)
     await rawConnection.execute(`
       CREATE TABLE Units (
         ID AUTOINCREMENT PRIMARY KEY,
@@ -112,7 +112,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // Products Table
+    // 产品表
     await rawConnection.execute(`
       CREATE TABLE Products (
         ID AUTOINCREMENT PRIMARY KEY,
@@ -128,7 +128,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // InvoiceItems Table
+    // 发票项目表
     await rawConnection.execute(`
       CREATE TABLE InvoiceItems (
         ID AUTOINCREMENT PRIMARY KEY,
@@ -145,7 +145,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // Invoices Table
+    // 发票表
     await rawConnection.execute(`
       CREATE TABLE Invoices (
         ID AUTOINCREMENT PRIMARY KEY,
@@ -159,7 +159,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // Estimates Table (New)
+    // 报价单表 (新增)
     await rawConnection.execute(`
       CREATE TABLE Estimates (
         ID AUTOINCREMENT PRIMARY KEY,
@@ -173,7 +173,7 @@ async function createSchema() {
       )
     `).catch(() => { });
 
-    // --- MIGRATIONS for Existing DBs ---
+    // --- 现有数据库的迁移 ---
     // Add Status column if missing
     try {
       await rawConnection.execute(`ALTER TABLE Invoices ADD COLUMN Status VARCHAR(50) DEFAULT 'Unpaid'`);
@@ -222,7 +222,7 @@ async function createSchema() {
       await rawConnection.execute(`ALTER TABLE Products ADD COLUMN Stock INT DEFAULT 0`);
     } catch (e) { /* Column likely exists */ }
 
-    // Populate Projects table from existing Products
+    // 从现有产品填充项目表
     try {
       await rawConnection.execute(`
             INSERT INTO Projects (Name) 

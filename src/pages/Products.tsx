@@ -20,6 +20,9 @@ import {
 
 import ConfirmDialog from '../components/ConfirmDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
+import PageTransition from '../components/PageTransition';
+import { motion } from 'framer-motion';
+import { containerVariants, itemVariants } from '../utils/animations';
 
 const Products = () => {
     const { t } = useTranslation();
@@ -31,12 +34,12 @@ const Products = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false);
 
-    // Filter & Sort State
+    // 筛选与排序状态
     const [searchTerm, setSearchTerm] = useState('');
     const [showInactive, setShowInactive] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Product, direction: 'asc' | 'desc' } | null>(null);
 
-    // Pagination State
+    // 分页状态
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -49,15 +52,15 @@ const Products = () => {
         setPage(0);
     };
 
-    // Reset page when filter changes
+    // 当筛选更改时重置页码
     useEffect(() => {
         setPage(0);
     }, [searchTerm, showInactive]);
 
-    // Project Rename State
+    // 项目重命名状态
     const [editingProject, setEditingProject] = useState<{ id: number, name: string } | null>(null);
 
-    // Edit State
+    // 编辑状态
     const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({
         Name: '', Code: '', Description: '', UnitPrice: 0, ClientIDs: [], IsActive: true, Project: '', TaxRate: 10, Stock: 0
     });
@@ -75,7 +78,7 @@ const Products = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    // Toast State
+    // Toast 状态
     const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' | 'warning' }>({
         open: false, message: '', severity: 'info'
     });
@@ -162,12 +165,12 @@ const Products = () => {
         }
     };
 
-    // Keyboard Shortcuts
+    // 快捷键
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (!isModalOpen) return;
 
-            // Ctrl+S to Save
+            // Ctrl+S 保存
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 handleSave();
@@ -284,434 +287,438 @@ const Products = () => {
     const visibleProducts = filteredProducts.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
     return (
-        <Box sx={{ p: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, gap: 2 }}>
-                <Typography variant="h4" fontWeight="bold">
-                    {t('products', 'Products')}
-                </Typography>
+        <PageTransition>
+            <Box sx={{ p: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, gap: 2 }}>
+                    <Typography variant="h4" fontWeight="bold">
+                        {t('products', 'Products')}
+                    </Typography>
 
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <TextField
-                        size="small"
-                        placeholder={t('products_search_placeholder', 'Search products...')}
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon color="action" />
-                                </InputAdornment>
-                            ),
-                            endAdornment: searchTerm && (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        size="small"
-                                        onClick={() => setSearchTerm('')}
-                                        edge="end"
-                                    >
-                                        <ClearIcon fontSize="small" />
-                                    </IconButton>
-                                </InputAdornment>
-                            )
-                        }}
-                        sx={{ width: 250, bgcolor: 'background.paper' }}
-                    />
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={showInactive}
-                                onChange={e => setShowInactive(e.target.checked)}
-                                color="primary"
-                            />
-                        }
-                        label={t('products_show_inactive', 'Show Inactive')}
-                    />
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => openModal()}
-                    >
-                        {t('products_add_product_btn', 'Add Product')}
-                    </Button>
-                </Box>
-            </Box>
-
-            {/* Mobile View (Cards) */}
-            <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-                {visibleProducts.map(product => (
-                    <Card key={product.ID} sx={{ mb: 2, opacity: product.IsActive ? 1 : 0.6 }}>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="h6" component="div">
-                                    {product.Name}
-                                </Typography>
-                                <Chip
-                                    label={product.Code || '-'}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{ fontFamily: 'monospace' }}
-                                />
-                            </Box>
-                            <Typography color="text.secondary" variant="body2" gutterBottom>
-                                {product.Description || 'No description'}
-                            </Typography>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                                <Typography variant="h6" color="success.main" fontWeight="bold">
-                                    {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
-                                </Typography>
-                                {product.Project && <Chip label={product.Project} size="small" color="primary" variant="outlined" />}
-                            </Box>
-                        </CardContent>
-                        <CardActions disableSpacing sx={{ justifyContent: 'space-between' }}>
-                            <Chip
-                                label={product.IsActive ? t('products_status_on_sale', 'On Sale') : t('products_status_stopped', 'Stopped')}
-                                color={product.IsActive ? 'success' : 'default'}
-                                size="small"
-                                onClick={() => toggleStatus(product)}
-                            />
-                            <Box>
-                                <IconButton size="small" onClick={() => openModal(product)} color="primary">
-                                    <EditIcon />
-                                </IconButton>
-                                <IconButton size="small" onClick={() => handleDelete(product.ID)} color="error">
-                                    <DeleteIcon />
-                                </IconButton>
-                            </Box>
-                        </CardActions>
-                    </Card>
-                ))}
-            </Box>
-
-            {/* Desktop View (Table) */}
-            <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
-                <Table>
-                    <TableHead sx={{ bgcolor: 'grey.50' }}>
-                        <TableRow>
-                            {[
-                                { key: 'Code', label: t('products_code_header', 'Code'), width: 140 },
-                                { key: 'Name', label: t('products_name', 'Product Info') },
-                                { key: 'Project', label: t('products_category', 'Project') },
-                                { key: 'Stock', label: t('products_stock', 'Stock'), align: 'center', width: 80 },
-                                { key: 'UnitPrice', label: t('products_price', 'Price'), align: 'right' },
-                                { key: 'IsActive', label: t('products_status_header', 'Status'), align: 'center' }
-                            ].map(({ key, label, width, align }) => (
-                                <TableCell
-                                    key={key}
-                                    onClick={() => handleSort(key as keyof Product)}
-                                    align={(align as any) || 'left'}
-                                    sx={{
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        width: width
-                                    }}
-                                    tabIndex={0}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleSort(key as keyof Product);
-                                    }}
-                                >
-                                    {label} {sortConfig?.key === key && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                </TableCell>
-                            ))}
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('products_actions', 'Actions')}</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {visibleProducts.map(product => (
-                            <TableRow
-                                key={product.ID}
-                                hover
-                                sx={{ opacity: product.IsActive ? 1 : 0.6 }}
-                            >
-                                <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{product.Code || '-'}</TableCell>
-                                <TableCell>
-                                    <Typography variant="subtitle2">{product.Name}</Typography>
-                                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
-                                        {product.Description}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell>
-                                    {product.Project ? (
-                                        <Chip
-                                            label={product.Project}
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <TextField
+                            size="small"
+                            placeholder={t('products_search_placeholder', 'Search products...')}
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon color="action" />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: searchTerm && (
+                                    <InputAdornment position="end">
+                                        <IconButton
                                             size="small"
-                                            color="primary"
-                                            variant="outlined"
-                                            onClick={() => setSearchTerm(product.Project || '')}
-                                            sx={{ cursor: 'pointer' }}
-                                        />
-                                    ) : '-'}
-                                </TableCell>
-                                <TableCell align="center">
-                                    <Chip label={product.Stock || 0} size="small" variant="outlined" />
-                                </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                                    {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
-                                </TableCell>
-                                <TableCell align="center">
+                                            onClick={() => setSearchTerm('')}
+                                            edge="end"
+                                        >
+                                            <ClearIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                )
+                            }}
+                            sx={{ width: 250, bgcolor: 'background.paper' }}
+                        />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={showInactive}
+                                    onChange={e => setShowInactive(e.target.checked)}
+                                    color="primary"
+                                />
+                            }
+                            label={t('products_show_inactive', 'Show Inactive')}
+                        />
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => openModal()}
+                        >
+                            {t('products_add_product_btn', 'Add Product')}
+                        </Button>
+                    </Box>
+                </Box>
+
+                {/* 移动端视图 (卡片) */}
+                <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                    {visibleProducts.map(product => (
+                        <Card key={product.ID} sx={{ mb: 2, opacity: product.IsActive ? 1 : 0.6 }}>
+                            <CardContent>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="h6" component="div">
+                                        {product.Name}
+                                    </Typography>
                                     <Chip
-                                        label={product.IsActive ? t('products_status_on_sale', 'On Sale') : t('products_status_stopped', 'Stopped')}
-                                        color={product.IsActive ? 'success' : 'default'}
+                                        label={product.Code || '-'}
                                         size="small"
-                                        onClick={() => toggleStatus(product)}
-                                        sx={{ cursor: 'pointer' }}
+                                        variant="outlined"
+                                        sx={{ fontFamily: 'monospace' }}
                                     />
-                                </TableCell>
-                                <TableCell align="right">
+                                </Box>
+                                <Typography color="text.secondary" variant="body2" gutterBottom>
+                                    {product.Description || 'No description'}
+                                </Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                                    <Typography variant="h6" color="success.main" fontWeight="bold">
+                                        {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
+                                    </Typography>
+                                    {product.Project && <Chip label={product.Project} size="small" color="primary" variant="outlined" />}
+                                </Box>
+                            </CardContent>
+                            <CardActions disableSpacing sx={{ justifyContent: 'space-between' }}>
+                                <Chip
+                                    label={product.IsActive ? t('products_status_on_sale', 'On Sale') : t('products_status_stopped', 'Stopped')}
+                                    color={product.IsActive ? 'success' : 'default'}
+                                    size="small"
+                                    onClick={() => toggleStatus(product)}
+                                />
+                                <Box>
                                     <IconButton size="small" onClick={() => openModal(product)} color="primary">
                                         <EditIcon />
                                     </IconButton>
                                     <IconButton size="small" onClick={() => handleDelete(product.ID)} color="error">
                                         <DeleteIcon />
                                     </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <TablePagination
-                rowsPerPageOptions={[5, 10, 25]}
-                component="div"
-                count={filteredProducts.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                labelRowsPerPage={t('rows_per_page')}
-                labelDisplayedRows={({ from, to, count }) => t('page_info', { from, to, count })}
-            />
-
-            {/* Product Edit Modal */}
-            <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} maxWidth="md" fullWidth>
-                <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                    <DialogTitle>{isEditing ? t('products_edit_product', 'Edit Product') : t('products_new_product', 'New Product')}</DialogTitle>
-                    <DialogContent dividers>
-                        <Grid container spacing={2}>
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <Autocomplete
-                                    freeSolo
-                                    options={savedProjects.map(p => p.Name)}
-                                    value={currentProduct.Project || ''}
-                                    onChange={(_, newValue) => handleProjectChange(newValue || '')}
-                                    onInputChange={(_, newInputValue) => handleProjectChange(newInputValue)}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label={t('products_project_label', 'Project / End Client')}
-                                            helperText={
-                                                <Typography
-                                                    variant="caption"
-                                                    sx={{ cursor: 'pointer', color: 'primary.main' }}
-                                                    onClick={() => setIsProjectManagerOpen(true)}
-                                                >
-                                                    {t('products_manage_projects', 'Manage Project List')}
-                                                </Typography>
-                                            }
-                                        />
-                                    )}
-                                />
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                                    <TextField
-                                        label={t('products_code_prefix', 'Code Prefix')}
-                                        value={codePrefix}
-                                        onChange={e => setCodePrefix(e.target.value)}
-                                        sx={{ flex: 1 }}
-                                    />
-                                    <Typography sx={{ mt: 2, fontWeight: 'bold' }}>-</Typography>
-                                    <TextField
-                                        label={t('products_code_number', 'Number')}
-                                        value={codeNumber}
-                                        onChange={e => setCodeNumber(e.target.value)}
-                                        sx={{ width: 100 }}
-                                    />
                                 </Box>
-                            </Grid>
-                            <Grid size={12}>
-                                <TextField
-                                    label={t('products_name', 'Product Name')}
-                                    fullWidth
-                                    value={currentProduct.Name}
-                                    onChange={e => setCurrentProduct({ ...currentProduct, Name: e.target.value })}
-                                    error={!!errors.Name}
-                                    helperText={errors.Name}
-                                />
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <TextField
-                                    label={t('products_price', 'Unit Price')}
-                                    type="number"
-                                    fullWidth
-                                    value={Number(currentProduct.UnitPrice).toString()}
-                                    onChange={e => setCurrentProduct({ ...currentProduct, UnitPrice: Number(e.target.value) })}
-                                    InputProps={{
-                                        startAdornment: <InputAdornment position="start">¥</InputAdornment>,
-                                    }}
-                                    error={!!errors.UnitPrice}
-                                    helperText={errors.UnitPrice}
-                                />
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <TextField
-                                    label={t('products_stock', 'Stock')}
-                                    type="number"
-                                    fullWidth
-                                    value={Number(currentProduct.Stock || 0).toString()}
-                                    onChange={e => setCurrentProduct({ ...currentProduct, Stock: Number(e.target.value) })}
-                                />
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-                                    <RadioGroup
-                                        row
-                                        value={currentProduct.TaxRate}
-                                        onChange={e => setCurrentProduct({ ...currentProduct, TaxRate: Number(e.target.value) })}
+                            </CardActions>
+                        </Card>
+                    ))}
+                </Box>
+
+                {/* 桌面视图 (表格) */}
+                <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
+                    <Table>
+                        <TableHead sx={{ bgcolor: 'grey.50' }}>
+                            <TableRow>
+                                {[
+                                    { key: 'Code', label: t('products_code_header', 'Code'), width: 140 },
+                                    { key: 'Name', label: t('products_name', 'Product Info') },
+                                    { key: 'Project', label: t('products_category', 'Project') },
+                                    { key: 'Stock', label: t('products_stock', 'Stock'), align: 'center', width: 80 },
+                                    { key: 'UnitPrice', label: t('products_price', 'Price'), align: 'right' },
+                                    { key: 'IsActive', label: t('products_status_header', 'Status'), align: 'center' }
+                                ].map(({ key, label, width, align }) => (
+                                    <TableCell
+                                        key={key}
+                                        onClick={() => handleSort(key as keyof Product)}
+                                        align={(align as any) || 'left'}
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            width: width
+                                        }}
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleSort(key as keyof Product);
+                                        }}
                                     >
-                                        <FormControlLabel value={10} control={<Radio />} label={t('products_tax_10', '10% (Standard)')} />
-                                        <FormControlLabel value={8} control={<Radio />} label={t('products_tax_8', '8% (Reduced)')} />
-                                    </RadioGroup>
-                                </Box>
-                            </Grid>
-                            <Grid size={12}>
-                                <TextField
-                                    label={t('products_description', 'Description')}
-                                    fullWidth
-                                    multiline
-                                    rows={2}
-                                    value={currentProduct.Description}
-                                    onChange={e => setCurrentProduct({ ...currentProduct, Description: e.target.value })}
-                                />
-                            </Grid>
-
-                            <Grid size={12}>
-                                <Typography variant="subtitle2" gutterBottom>{t('products_applicable_clients', 'Applicable Clients')}</Typography>
-                                <Paper variant="outlined" sx={{ p: 2, maxHeight: 150, overflowY: 'auto' }}>
-                                    <Grid container spacing={1}>
-                                        {allClients.map(client => (
-                                            <Grid size={{ xs: 12, md: 6 }} key={client.ID}>
-                                                <FormControlLabel
-                                                    control={
-                                                        <Checkbox
-                                                            checked={currentProduct.ClientIDs?.includes(client.ID) || false}
-                                                            onChange={() => {
-                                                                const currentIds = currentProduct.ClientIDs || [];
-                                                                if (currentIds.includes(client.ID)) {
-                                                                    setCurrentProduct({ ...currentProduct, ClientIDs: currentIds.filter(id => id !== client.ID) });
-                                                                } else {
-                                                                    setCurrentProduct({ ...currentProduct, ClientIDs: [...currentIds, client.ID] });
-                                                                }
-                                                            }}
-                                                            size="small"
-                                                        />
-                                                    }
-                                                    label={<Typography variant="body2" noWrap>{client.Name}</Typography>}
-                                                />
-                                            </Grid>
-                                        ))}
-                                    </Grid>
-                                </Paper>
-                            </Grid>
-
-                            <Grid size={12}>
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            checked={currentProduct.IsActive}
-                                            onChange={e => setCurrentProduct({ ...currentProduct, IsActive: e.target.checked })}
+                                        {label} {sortConfig?.key === key && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </TableCell>
+                                ))}
+                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('products_actions', 'Actions')}</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody component={motion.tbody} variants={containerVariants} initial="hidden" animate="visible">
+                            {visibleProducts.map(product => (
+                                <TableRow
+                                    key={product.ID}
+                                    component={motion.tr}
+                                    variants={itemVariants}
+                                    hover
+                                    sx={{ opacity: product.IsActive ? 1 : 0.6 }}
+                                >
+                                    <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{product.Code || '-'}</TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2">{product.Name}</Typography>
+                                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
+                                            {product.Description}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        {product.Project ? (
+                                            <Chip
+                                                label={product.Project}
+                                                size="small"
+                                                color="primary"
+                                                variant="outlined"
+                                                onClick={() => setSearchTerm(product.Project || '')}
+                                                sx={{ cursor: 'pointer' }}
+                                            />
+                                        ) : '-'}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        <Chip label={product.Stock || 0} size="small" variant="outlined" />
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                                        {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        <Chip
+                                            label={product.IsActive ? t('products_status_on_sale', 'On Sale') : t('products_status_stopped', 'Stopped')}
+                                            color={product.IsActive ? 'success' : 'default'}
+                                            size="small"
+                                            onClick={() => toggleStatus(product)}
+                                            sx={{ cursor: 'pointer' }}
                                         />
-                                    }
-                                    label={t('products_active', 'Active (On Sale)')}
-                                />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <IconButton size="small" onClick={() => openModal(product)} color="primary">
+                                            <EditIcon />
+                                        </IconButton>
+                                        <IconButton size="small" onClick={() => handleDelete(product.ID)} color="error">
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TablePagination
+                    rowsPerPageOptions={[5, 10, 25]}
+                    component="div"
+                    count={filteredProducts.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    labelRowsPerPage={t('rows_per_page')}
+                    labelDisplayedRows={({ from, to, count }) => t('page_info', { from, to, count })}
+                />
+
+                {/* 产品编辑模态框 */}
+                <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} maxWidth="md" fullWidth>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                        <DialogTitle>{isEditing ? t('products_edit_product', 'Edit Product') : t('products_new_product', 'New Product')}</DialogTitle>
+                        <DialogContent dividers>
+                            <Grid container spacing={2}>
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <Autocomplete
+                                        freeSolo
+                                        options={savedProjects.map(p => p.Name)}
+                                        value={currentProduct.Project || ''}
+                                        onChange={(_, newValue) => handleProjectChange(newValue || '')}
+                                        onInputChange={(_, newInputValue) => handleProjectChange(newInputValue)}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label={t('products_project_label', 'Project / End Client')}
+                                                helperText={
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{ cursor: 'pointer', color: 'primary.main' }}
+                                                        onClick={() => setIsProjectManagerOpen(true)}
+                                                    >
+                                                        {t('products_manage_projects', 'Manage Project List')}
+                                                    </Typography>
+                                                }
+                                            />
+                                        )}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                                        <TextField
+                                            label={t('products_code_prefix', 'Code Prefix')}
+                                            value={codePrefix}
+                                            onChange={e => setCodePrefix(e.target.value)}
+                                            sx={{ flex: 1 }}
+                                        />
+                                        <Typography sx={{ mt: 2, fontWeight: 'bold' }}>-</Typography>
+                                        <TextField
+                                            label={t('products_code_number', 'Number')}
+                                            value={codeNumber}
+                                            onChange={e => setCodeNumber(e.target.value)}
+                                            sx={{ width: 100 }}
+                                        />
+                                    </Box>
+                                </Grid>
+                                <Grid size={12}>
+                                    <TextField
+                                        label={t('products_name', 'Product Name')}
+                                        fullWidth
+                                        value={currentProduct.Name}
+                                        onChange={e => setCurrentProduct({ ...currentProduct, Name: e.target.value })}
+                                        error={!!errors.Name}
+                                        helperText={errors.Name}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 4 }}>
+                                    <TextField
+                                        label={t('products_price', 'Unit Price')}
+                                        type="number"
+                                        fullWidth
+                                        value={Number(currentProduct.UnitPrice).toString()}
+                                        onChange={e => setCurrentProduct({ ...currentProduct, UnitPrice: Number(e.target.value) })}
+                                        InputProps={{
+                                            startAdornment: <InputAdornment position="start">¥</InputAdornment>,
+                                        }}
+                                        error={!!errors.UnitPrice}
+                                        helperText={errors.UnitPrice}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 4 }}>
+                                    <TextField
+                                        label={t('products_stock', 'Stock')}
+                                        type="number"
+                                        fullWidth
+                                        value={Number(currentProduct.Stock || 0).toString()}
+                                        onChange={e => setCurrentProduct({ ...currentProduct, Stock: Number(e.target.value) })}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 4 }}>
+                                    <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+                                        <RadioGroup
+                                            row
+                                            value={currentProduct.TaxRate}
+                                            onChange={e => setCurrentProduct({ ...currentProduct, TaxRate: Number(e.target.value) })}
+                                        >
+                                            <FormControlLabel value={10} control={<Radio />} label={t('products_tax_10', '10% (Standard)')} />
+                                            <FormControlLabel value={8} control={<Radio />} label={t('products_tax_8', '8% (Reduced)')} />
+                                        </RadioGroup>
+                                    </Box>
+                                </Grid>
+                                <Grid size={12}>
+                                    <TextField
+                                        label={t('products_description', 'Description')}
+                                        fullWidth
+                                        multiline
+                                        rows={2}
+                                        value={currentProduct.Description}
+                                        onChange={e => setCurrentProduct({ ...currentProduct, Description: e.target.value })}
+                                    />
+                                </Grid>
+
+                                <Grid size={12}>
+                                    <Typography variant="subtitle2" gutterBottom>{t('products_applicable_clients', 'Applicable Clients')}</Typography>
+                                    <Paper variant="outlined" sx={{ p: 2, maxHeight: 150, overflowY: 'auto' }}>
+                                        <Grid container spacing={1}>
+                                            {allClients.map(client => (
+                                                <Grid size={{ xs: 12, md: 6 }} key={client.ID}>
+                                                    <FormControlLabel
+                                                        control={
+                                                            <Checkbox
+                                                                checked={currentProduct.ClientIDs?.includes(client.ID) || false}
+                                                                onChange={() => {
+                                                                    const currentIds = currentProduct.ClientIDs || [];
+                                                                    if (currentIds.includes(client.ID)) {
+                                                                        setCurrentProduct({ ...currentProduct, ClientIDs: currentIds.filter(id => id !== client.ID) });
+                                                                    } else {
+                                                                        setCurrentProduct({ ...currentProduct, ClientIDs: [...currentIds, client.ID] });
+                                                                    }
+                                                                }}
+                                                                size="small"
+                                                            />
+                                                        }
+                                                        label={<Typography variant="body2" noWrap>{client.Name}</Typography>}
+                                                    />
+                                                </Grid>
+                                            ))}
+                                        </Grid>
+                                    </Paper>
+                                </Grid>
+
+                                <Grid size={12}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={currentProduct.IsActive}
+                                                onChange={e => setCurrentProduct({ ...currentProduct, IsActive: e.target.checked })}
+                                            />
+                                        }
+                                        label={t('products_active', 'Active (On Sale)')}
+                                    />
+                                </Grid>
                             </Grid>
-                        </Grid>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={() => setIsModalOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
+                            <Button type="submit" variant="contained" color="primary">{t('common.save', 'Save')}</Button>
+                        </DialogActions>
+                    </form>
+                </Dialog>
+
+                {/* 项目管理模态框 */}
+                <Dialog open={isProjectManagerOpen} onClose={() => setIsProjectManagerOpen(false)} maxWidth="xs" fullWidth>
+                    <DialogTitle>{t('products_manage_projects', 'Manage Projects')}</DialogTitle>
+                    <DialogContent dividers>
+                        <List dense>
+                            {savedProjects.map(p => (
+                                <ListItem key={p.ID}>
+                                    {editingProject?.id === p.ID ? (
+                                        <Box sx={{ display: 'flex', width: '100%', gap: 1 }}>
+                                            <TextField
+                                                size="small"
+                                                fullWidth
+                                                value={editingProject.name}
+                                                onChange={e => setEditingProject({ ...editingProject, name: e.target.value })}
+                                                autoFocus
+                                            />
+                                            <Button size="small" onClick={() => handleRenameProject(p.ID, p.Name)}>{t('common.save', 'Save')}</Button>
+                                        </Box>
+                                    ) : (
+                                        <>
+                                            <ListItemText primary={p.Name} />
+                                            <ListItemSecondaryAction>
+                                                <IconButton size="small" onClick={() => setEditingProject({ id: p.ID, name: p.Name })}>
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                                <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    onClick={() => {
+                                                        setConfirmDialog({
+                                                            open: true,
+                                                            message: t('products_delete_project_confirm', 'Delete project "{name}" from list?').replace('{name}', p.Name),
+                                                            onConfirm: async () => {
+                                                                await projectService.delete(p.ID);
+                                                                setConfirmDialog(prev => ({ ...prev, open: false }));
+                                                                loadProjects();
+                                                                showToast('Project deleted');
+                                                            }
+                                                        });
+                                                    }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </ListItemSecondaryAction>
+                                        </>
+                                    )}
+                                </ListItem>
+                            ))}
+                            {savedProjects.length === 0 && (
+                                <Typography variant="body2" color="text.secondary" align="center">{t('products_no_projects', 'No projects found.')}</Typography>
+                            )}
+                        </List>
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => setIsModalOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
-                        <Button type="submit" variant="contained" color="primary">{t('common.save', 'Save')}</Button>
+                        <Button onClick={() => setIsProjectManagerOpen(false)}>{t('common.close', 'Close')}</Button>
                     </DialogActions>
-                </form>
-            </Dialog>
+                </Dialog>
 
-            {/* Project Manager Modal */}
-            <Dialog open={isProjectManagerOpen} onClose={() => setIsProjectManagerOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>{t('products_manage_projects', 'Manage Projects')}</DialogTitle>
-                <DialogContent dividers>
-                    <List dense>
-                        {savedProjects.map(p => (
-                            <ListItem key={p.ID}>
-                                {editingProject?.id === p.ID ? (
-                                    <Box sx={{ display: 'flex', width: '100%', gap: 1 }}>
-                                        <TextField
-                                            size="small"
-                                            fullWidth
-                                            value={editingProject.name}
-                                            onChange={e => setEditingProject({ ...editingProject, name: e.target.value })}
-                                            autoFocus
-                                        />
-                                        <Button size="small" onClick={() => handleRenameProject(p.ID, p.Name)}>{t('common.save', 'Save')}</Button>
-                                    </Box>
-                                ) : (
-                                    <>
-                                        <ListItemText primary={p.Name} />
-                                        <ListItemSecondaryAction>
-                                            <IconButton size="small" onClick={() => setEditingProject({ id: p.ID, name: p.Name })}>
-                                                <EditIcon fontSize="small" />
-                                            </IconButton>
-                                            <IconButton
-                                                size="small"
-                                                color="error"
-                                                onClick={() => {
-                                                    setConfirmDialog({
-                                                        open: true,
-                                                        message: t('products_delete_project_confirm', 'Delete project "{name}" from list?').replace('{name}', p.Name),
-                                                        onConfirm: async () => {
-                                                            await projectService.delete(p.ID);
-                                                            setConfirmDialog(prev => ({ ...prev, open: false }));
-                                                            loadProjects();
-                                                            showToast('Project deleted');
-                                                        }
-                                                    });
-                                                }}
-                                            >
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </ListItemSecondaryAction>
-                                    </>
-                                )}
-                            </ListItem>
-                        ))}
-                        {savedProjects.length === 0 && (
-                            <Typography variant="body2" color="text.secondary" align="center">{t('products_no_projects', 'No projects found.')}</Typography>
-                        )}
-                    </List>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsProjectManagerOpen(false)}>{t('common.close', 'Close')}</Button>
-                </DialogActions>
-            </Dialog>
+                <ConfirmDialog
+                    open={confirmDialog.open}
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                />
 
-            <ConfirmDialog
-                open={confirmDialog.open}
-                title={confirmDialog.title}
-                message={confirmDialog.message}
-                onConfirm={confirmDialog.onConfirm}
-                onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
-            />
+                <Snackbar
+                    open={toast.open}
+                    autoHideDuration={3000}
+                    onClose={handleCloseToast}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                    <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%' }}>
+                        {toast.message}
+                    </Alert>
+                </Snackbar>
 
-            <Snackbar
-                open={toast.open}
-                autoHideDuration={3000}
-                onClose={handleCloseToast}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            >
-                <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%' }}>
-                    {toast.message}
-                </Alert>
-            </Snackbar>
-
-            <LoadingOverlay open={loading} />
-        </Box>
+                <LoadingOverlay open={loading} />
+            </Box>
+        </PageTransition >
     );
 };
 

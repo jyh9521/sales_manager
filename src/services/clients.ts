@@ -12,7 +12,7 @@ export const clientService = {
     async getAll(): Promise<Client[]> {
         const sql = "SELECT * FROM Clients ORDER BY ID DESC";
         const clients = await query<any[]>(sql);
-        // Normalize BIT/Boolean
+        // 归一化 BIT/Boolean
         return clients.map(c => ({
             ...c,
             IsActive: !!c.IsActive

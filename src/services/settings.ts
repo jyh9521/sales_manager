@@ -11,8 +11,8 @@ export interface AppSettings {
     AccountNumber: string;
     AccountHolder: string;
     RegistrationNumber: string; // T番号
-    Logo?: string; // Base64 image
-    PrimaryColor?: string; // Hex color
+    Logo?: string; // Base64 图像
+    PrimaryColor?: string; // Hex 颜色
     AutoBackup?: boolean;
     BackupPath?: string;
 }
@@ -29,15 +29,15 @@ export const defaultSettings: AppSettings = {
     AccountHolder: 'カ）xxxx',
     RegistrationNumber: 'T1234567890123',
     Logo: '',
-    PrimaryColor: '#1976d2', // Default Blue
+    PrimaryColor: '#1976d2', // 默认蓝色
     AutoBackup: false,
     BackupPath: ''
 };
 
 export const settingsService = {
     async get(): Promise<AppSettings> {
-        // Access doesn't support JSON type well, so we store each field as a row or one big JSON blob in a MEMO field.
-        // Let's use one row with Key='MainConfig' and Value=JSON string.
+        // Access 对 JSON 类型支持不佳，因此我们将每个字段存储为行或将一个大 JSON blob 存储在 MEMO 字段中。
+        // 让我们使用 Key='MainConfig' 和 Value=JSON 字符串的一行。
         const sql = "SELECT SettingValue FROM Settings WHERE SettingKey='MainConfig'";
         try {
             const res = await query<{ SettingValue: string }[]>(sql);
@@ -53,7 +53,7 @@ export const settingsService = {
 
     async save(settings: AppSettings): Promise<void> {
         const json = JSON.stringify(settings).replace(/'/g, "''");
-        // Check if exists
+        // 检查是否存在
         const check = await query("SELECT SettingKey FROM Settings WHERE SettingKey='MainConfig'");
         if (check && check.length > 0) {
             await execute(`UPDATE Settings SET SettingValue='${json}' WHERE SettingKey='MainConfig'`);

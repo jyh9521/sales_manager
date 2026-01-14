@@ -13,6 +13,11 @@ import { useTranslation } from 'react-i18next';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
+import PageTransition from '../components/PageTransition';
+
+import { motion } from 'framer-motion';
+import { containerVariants, itemVariants } from '../utils/animations';
+
 const Dashboard = () => {
     const { t } = useTranslation();
     const theme = useTheme();
@@ -36,7 +41,7 @@ const Dashboard = () => {
     if (loading) return <LoadingOverlay open={true} />;
     if (!stats) return null;
 
-    // Helper for Metric Cards
+    // 指标卡片辅助组件
     const MetricCard = ({ title, value, subtext, trend }: { title: string, value: string, subtext?: string, trend?: number }) => (
         <Paper
             elevation={3}
@@ -80,7 +85,7 @@ const Dashboard = () => {
                     </Box>
                 )}
             </Box>
-            {/* Decorative background circle */}
+            {/* 装饰性背景圆圈 */}
             <Box
                 sx={{
                     position: 'absolute',
@@ -98,122 +103,123 @@ const Dashboard = () => {
     );
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
-                {t('dashboard')}
-            </Typography>
+        <PageTransition>
+            <Box sx={{ p: 3 }}>
+                <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
+                    {t('dashboard')}
+                </Typography>
 
-            <Grid container spacing={3}>
-                {/* 1. Key Metrics Row */}
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <MetricCard
-                        title={t('dashboard_monthly_sales', 'Monthly Sales (Current)')}
-                        value={`¥${stats.totalSales.toLocaleString()}`}
-                        trend={stats.salesGrowthMoM}
-                        subtext={t('dashboard_vs_last_month', 'vs Last Month')}
-                    />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <MetricCard
-                        title={t('dashboard_yoy_growth', 'YoY Growth')}
-                        value={`${stats.salesGrowthYoY > 0 ? '+' : ''}${stats.salesGrowthYoY.toFixed(1)}%`}
-                        subtext={t('dashboard_vs_same_month_last_year', 'vs Same Month Last Year')}
-                        // Just visual styling
-                        trend={stats.salesGrowthYoY}
-                    />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <MetricCard
-                        title={t('dashboard_active_projects', 'Active Projects (Top 5)')}
-                        value={stats.topClients.length.toString()}
-                        subtext={t('dashboard_contributing_projects', 'Projects contributing this year')}
-                        trend={0} // Neutral
-                    />
-                </Grid>
+                <Grid container spacing={3} component={motion.div} variants={containerVariants} initial="hidden" animate="visible">
+                    {/* 1. 关键指标行 */}
+                    <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
+                        <MetricCard
+                            title={t('dashboard_monthly_sales', 'Monthly Sales (Current)')}
+                            value={`¥${stats.totalSales.toLocaleString()}`}
+                            trend={stats.salesGrowthMoM}
+                            subtext={t('dashboard_vs_last_month', 'vs Last Month')}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
+                        <MetricCard
+                            title={t('dashboard_yoy_growth', 'YoY Growth')}
+                            value={`${stats.salesGrowthYoY > 0 ? '+' : ''}${stats.salesGrowthYoY.toFixed(1)}%`}
+                            subtext={t('dashboard_vs_same_month_last_year', 'vs Same Month Last Year')}
+                            trend={stats.salesGrowthYoY}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
+                        <MetricCard
+                            title={t('dashboard_active_projects', 'Active Projects (Top 5)')}
+                            value={stats.topClients.length.toString()}
+                            subtext={t('dashboard_contributing_projects', 'Projects contributing this year')}
+                            trend={0}
+                        />
+                    </Grid>
 
-                {/* 2. Charts Row 1: Trend & Distribution */}
-                <Grid size={{ xs: 12, md: 8 }}>
-                    <Paper sx={{ p: 3, borderRadius: 4, height: 400 }}>
-                        <Typography variant="h6" gutterBottom>{t('dashboard_sales_trend', 'Sales Trend (Last 6 Months)')}</Typography>
-                        <ResponsiveContainer width="100%" height="90%">
-                            <LineChart data={stats.monthlyTrend}>
-                                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                                <XAxis dataKey="name" stroke={theme.palette.text.secondary} />
-                                <YAxis stroke={theme.palette.text.secondary} />
-                                <Tooltip
-                                    formatter={(value: number | undefined) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
-                                    labelFormatter={(label) => `${label}`}
-                                    contentStyle={{
-                                        backgroundColor: theme.palette.background.paper,
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        borderRadius: 8
-                                    }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="sales"
-                                    stroke={theme.palette.primary.main}
-                                    strokeWidth={3}
-                                    dot={{ r: 4, fill: theme.palette.primary.main }}
-                                    activeDot={{ r: 8 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </Paper>
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <Paper sx={{ p: 3, borderRadius: 4, height: 400 }}>
-                        <Typography variant="h6" gutterBottom>{t('dashboard_product_distribution', 'Product Sales Distribution')}</Typography>
-                        <ResponsiveContainer width="100%" height="90%">
-                            <PieChart>
-                                <Pie
-                                    data={stats.productDistribution}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
+                    {/* 2. 图表行 1：趋势与分布 */}
+                    <Grid size={{ xs: 12, md: 8 }} component={motion.div} variants={itemVariants}>
+                        <Paper sx={{ p: 3, borderRadius: 4, height: 400 }}>
+                            <Typography variant="h6" gutterBottom>{t('dashboard_sales_trend', 'Sales Trend (Last 6 Months)')}</Typography>
+                            <ResponsiveContainer width="100%" height="90%">
+                                <LineChart data={stats.monthlyTrend}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                                    <XAxis dataKey="name" stroke={theme.palette.text.secondary} />
+                                    <YAxis stroke={theme.palette.text.secondary} />
+                                    <Tooltip
+                                        formatter={(value: number | undefined) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
+                                        labelFormatter={(label) => `${label}`}
+                                        contentStyle={{
+                                            backgroundColor: theme.palette.background.paper,
+                                            border: `1px solid ${theme.palette.divider}`,
+                                            borderRadius: 8
+                                        }}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="sales"
+                                        stroke={theme.palette.primary.main}
+                                        strokeWidth={3}
+                                        dot={{ r: 4, fill: theme.palette.primary.main }}
+                                        activeDot={{ r: 8 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 4 }} component={motion.div} variants={itemVariants}>
+                        <Paper sx={{ p: 3, borderRadius: 4, height: 400 }}>
+                            <Typography variant="h6" gutterBottom>{t('dashboard_product_distribution', 'Product Sales Distribution')}</Typography>
+                            <ResponsiveContainer width="100%" height="90%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats.productDistribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {stats.productDistribution.map((_, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
+
+                    {/* 3. 顶级客户柱状图 */}
+                    <Grid size={{ xs: 12 }} component={motion.div} variants={itemVariants}>
+                        <Paper sx={{ p: 3, borderRadius: 4, height: 400 }}>
+                            <Typography variant="h6" gutterBottom>{t('dashboard_top_projects', 'Top 5 Projects (Sub-clients) by Sales')}</Typography>
+                            <ResponsiveContainer width="100%" height="90%">
+                                <BarChart
+                                    layout="vertical"
+                                    data={stats.topClients}
+                                    margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
                                 >
-                                    {stats.productDistribution.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </Paper>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} horizontal={false} />
+                                    <XAxis type="number" stroke={theme.palette.text.secondary} />
+                                    <YAxis type="category" dataKey="name" width={100} stroke={theme.palette.text.secondary} />
+                                    <Tooltip
+                                        formatter={(value: number | undefined) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
+                                        contentStyle={{
+                                            backgroundColor: theme.palette.background.paper,
+                                            border: `1px solid ${theme.palette.divider}`,
+                                            borderRadius: 8
+                                        }}
+                                    />
+                                    <Bar dataKey="total" fill={theme.palette.primary.main} radius={[0, 4, 4, 0]} barSize={20} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
                 </Grid>
-
-                {/* 3. Top Clients Bar Chart */}
-                <Grid size={{ xs: 12 }}>
-                    <Paper sx={{ p: 3, borderRadius: 4, height: 400 }}>
-                        <Typography variant="h6" gutterBottom>{t('dashboard_top_projects', 'Top 5 Projects (Sub-clients) by Sales')}</Typography>
-                        <ResponsiveContainer width="100%" height="90%">
-                            <BarChart
-                                layout="vertical"
-                                data={stats.topClients}
-                                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={theme.palette.divider} />
-                                <XAxis type="number" stroke={theme.palette.text.secondary} />
-                                <YAxis dataKey="name" type="category" width={100} stroke={theme.palette.text.secondary} />
-                                <Tooltip
-                                    cursor={{ fill: theme.palette.action.hover }}
-                                    formatter={(value: number | undefined) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
-                                    contentStyle={{
-                                        backgroundColor: theme.palette.background.paper,
-                                        borderRadius: 8
-                                    }}
-                                />
-                                <Bar dataKey="value" fill={theme.palette.secondary.main} radius={[0, 4, 4, 0]} barSize={20} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </Paper>
-                </Grid>
-            </Grid>
-        </Box>
+            </Box>
+        </PageTransition>
     );
 };
 

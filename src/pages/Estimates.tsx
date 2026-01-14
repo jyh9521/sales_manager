@@ -23,6 +23,9 @@ import {
 import { Snackbar, Alert, Backdrop, CircularProgress } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
+import PageTransition from '../components/PageTransition';
+import { motion } from 'framer-motion';
+import { containerVariants, itemVariants } from '../utils/animations';
 
 const Estimates = () => {
     const { t } = useTranslation();
@@ -32,25 +35,25 @@ const Estimates = () => {
     const [settings, setSettings] = useState<AppSettings>(defaultSettings);
     const [loading, setLoading] = useState(true);
 
-    // Filters
+    // 筛选
     const [monthFilter] = useState(new Date().toISOString().slice(0, 7));
     const [statusFilter] = useState<string>('All');
 
-    // State
+    // 状态
     const [isCreateMode, setIsCreateMode] = useState(false);
     const [viewEstimate, setViewEstimate] = useState<Estimate | null>(null);
     const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     const [manualId, setManualId] = useState<string>('');
     const [manualStatus, setManualStatus] = useState<'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Converted'>('Draft');
 
-    // Form State
+    // 表单状态
     const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
     const [estimateDate, setEstimateDate] = useState(new Date().toISOString().slice(0, 10));
     const [validUntil, setValidUntil] = useState<string>('');
     const [items, setItems] = useState<InvoiceItem[]>([]);
     const [remarks, setRemarks] = useState('');
 
-    // Pagination
+    // 分页
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const handleChangePage = (_event: unknown, newPage: number) => setPage(newPage);
@@ -209,10 +212,10 @@ const Estimates = () => {
                         Status: 'Unpaid'
                     };
 
-                    // @ts-ignore - Create returns ID (number)
+                    // @ts-ignore - Create 返回 ID (number)
                     const invId = await invoiceService.create(invoiceData);
 
-                    // Artificial delay for better UX (so spinner doesn't flash too fast)
+                    // 为了更好的用户体验，人为延迟（使加载动画不会闪烁太快）
                     await new Promise(r => setTimeout(r, 800));
 
                     setIsConverting(false); // Stop loading
@@ -221,7 +224,7 @@ const Estimates = () => {
                         await estimateService.save({ ...estimate, Status: 'Converted' });
                         showToast(t('estimates_converted_success', { id: invId }));
 
-                        // Ask if user wants to delete the original estimate
+                        // 询问用户是否要删除原始估价单
                         setConfirmDialog({
                             open: true,
                             title: t('delete_estimate_prompt_title', 'Delete Original Estimate?'),
@@ -247,7 +250,7 @@ const Estimates = () => {
                     setIsConverting(false);
                     console.error(e);
                     showToast(`${t('estimates_conversion_failed')}: ${e.message || e}`, 'error');
-                    // On error, do not navigate
+                    // 出错时，不进行导航
                 }
             }
         });
@@ -367,31 +370,31 @@ const Estimates = () => {
         );
     };
 
-    const renderContent = () => {
-        if (viewEstimate) {
-            return (
-                <Dialog fullScreen open={true} onClose={() => setViewEstimate(null)}>
-                    <div className="flex flex-col items-center p-4 min-h-screen bg-gray-100 dark:bg-gray-900">
-                        <div className="w-full max-w-4xl flex justify-between items-center mb-4 print:hidden sticky top-0 bg-gray-100 z-10 py-2">
-                            <h2 className="text-xl font-bold">{t('estimates_preview', 'Preview')}</h2>
-                            <div className="flex gap-2">
-                                <Button variant="contained" startIcon={<PrintIcon />} onClick={() => window.print()}>{t('common.print')}</Button>
-                                <Button variant="contained" color="secondary" startIcon={<EditIcon />} onClick={() => handleEdit(viewEstimate)}>{t('common.edit')}</Button>
-                                <Button variant="contained" color="primary" startIcon={<TransformIcon />} onClick={() => handleConvert(viewEstimate)}>{t('estimates_convert', 'Convert')}</Button>
-                                <Button variant="outlined" onClick={() => setViewEstimate(null)}>{t('common.close')}</Button>
-                            </div>
+    if (viewEstimate) {
+        return (
+            <Dialog fullScreen open={true} onClose={() => setViewEstimate(null)}>
+                <div className="flex flex-col items-center p-4 min-h-screen bg-gray-100 dark:bg-gray-900">
+                    <div className="w-full max-w-4xl flex justify-between items-center mb-4 print:hidden sticky top-0 bg-gray-100 z-10 py-2">
+                        <h2 className="text-xl font-bold">{t('estimates_preview', 'Preview')}</h2>
+                        <div className="flex gap-2">
+                            <Button variant="contained" startIcon={<PrintIcon />} onClick={() => window.print()}>{t('common.print')}</Button>
+                            <Button variant="contained" color="secondary" startIcon={<EditIcon />} onClick={() => handleEdit(viewEstimate)}>{t('common.edit')}</Button>
+                            <Button variant="contained" color="primary" startIcon={<TransformIcon />} onClick={() => handleConvert(viewEstimate)}>{t('estimates_convert', 'Convert')}</Button>
+                            <Button variant="outlined" onClick={() => setViewEstimate(null)}>{t('common.close')}</Button>
                         </div>
-                        <div className="bg-white shadow-2xl w-full max-w-[210mm] print:shadow-none">
-                            <PrintView estimate={viewEstimate} />
-                        </div>
-                        <style>{`@media print { .print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; } }`}</style>
                     </div>
-                </Dialog>
-            );
-        }
+                    <div className="bg-white shadow-2xl w-full max-w-[210mm] print:shadow-none">
+                        <PrintView estimate={viewEstimate} />
+                    </div>
+                    <style>{`@media print { .print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; } }`}</style>
+                </div>
+            </Dialog>
+        );
+    }
 
-        if (isCreateMode) {
-            return (
+    if (isCreateMode) {
+        return (
+            <PageTransition>
                 <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, minHeight: '80vh' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
                         <Typography variant="h5">{editingEstimate ? `${t('estimates_title')} #${manualId}` : t('estimates_create_title')}</Typography>
@@ -473,10 +476,12 @@ const Estimates = () => {
                         <Button variant="contained" size="large" onClick={() => handleSave(editingEstimate ? 'update' : 'create')}>{t('estimates_save_btn')}</Button>
                     </Box>
                 </Box>
-            );
-        }
+            </PageTransition >
+        );
+    }
 
-        return (
+    return (
+        <PageTransition>
             <Box sx={{ p: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
                     <Typography variant="h4" fontWeight="bold">{t('estimates_title', 'Estimates')}</Typography>
@@ -495,9 +500,9 @@ const Estimates = () => {
                                 <TableCell align="right">{t('estimates_actions')}</TableCell>
                             </TableRow>
                         </TableHead>
-                        <TableBody>
+                        <TableBody component={motion.tbody} variants={containerVariants} initial="hidden" animate="visible">
                             {visibleEstimates.map(est => (
-                                <TableRow key={est.ID} hover>
+                                <TableRow key={est.ID} component={motion.tr} variants={itemVariants} hover>
                                     <TableCell>{est.ID}</TableCell>
                                     <TableCell>{new Date(est.EstimateDate).toLocaleDateString()}</TableCell>
                                     <TableCell>{est.ClientName || '-'}</TableCell>
@@ -529,38 +534,33 @@ const Estimates = () => {
                         labelRowsPerPage={t('common.rows_per_page')}
                     />
                 </TableContainer>
-            </Box>
-        );
-    };
 
-    return (
-        <>
-            {renderContent()}
-            <ConfirmDialog
-                open={confirmDialog.open}
-                title={confirmDialog.title}
-                message={confirmDialog.message}
-                onConfirm={confirmDialog.onConfirm}
-                onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
-                confirmLabel={confirmDialog.confirmLabel}
-                cancelLabel={confirmDialog.cancelLabel}
-                confirmColor={confirmDialog.confirmColor}
-            />
-            <Snackbar open={toast.open} autoHideDuration={3000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-                <Alert onClose={handleCloseToast} severity={toast.severity}>{toast.message}</Alert>
-            </Snackbar>
-            <LoadingOverlay open={loading} />
-            {/* Loading Overlay */}
-            <Backdrop
-                sx={{ color: '#fff', zIndex: 9999 }} // Highest priority
-                open={isConverting}
-            >
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <CircularProgress color="inherit" size={60} />
-                    <Typography variant="h6">{t('converting', 'Converting...')}</Typography>
-                </Box>
-            </Backdrop>
-        </>
+                <ConfirmDialog
+                    open={confirmDialog.open}
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                    confirmLabel={confirmDialog.confirmLabel}
+                    cancelLabel={confirmDialog.cancelLabel}
+                    confirmColor={confirmDialog.confirmColor}
+                />
+                <Snackbar open={toast.open} autoHideDuration={3000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+                    <Alert onClose={handleCloseToast} severity={toast.severity}>{toast.message}</Alert>
+                </Snackbar>
+                <LoadingOverlay open={loading} />
+                {/* Loading Overlay */}
+                <Backdrop
+                    sx={{ color: '#fff', zIndex: 9999 }} // 最高优先级
+                    open={isConverting}
+                >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <CircularProgress color="inherit" size={60} />
+                        <Typography variant="h6">{t('converting', 'Converting...')}</Typography>
+                    </Box>
+                </Backdrop>
+            </Box>
+        </PageTransition>
     );
 };
 

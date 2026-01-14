@@ -24,6 +24,9 @@ import { Snackbar, Alert } from '@mui/material';
 import { createFilterOptions } from '@mui/material/Autocomplete';
 import ConfirmDialog from '../components/ConfirmDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
+import PageTransition from '../components/PageTransition';
+import { motion } from 'framer-motion';
+import { containerVariants, itemVariants } from '../utils/animations';
 
 const filterOptions = createFilterOptions({
     stringify: (option: Product | string) => {
@@ -42,11 +45,11 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const [units, setUnits] = useState<Unit[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Filters
+    // 筛选
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [statusFilter, setStatusFilter] = useState<'All' | 'Unpaid' | 'Paid' | 'Sent'>('All');
 
-    // Create/View State
+    // 创建/查看状态
     const [isCreateMode, setIsCreateMode] = useState(false);
     const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null); // For Edit Mode
@@ -54,14 +57,14 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const [manualStatus, setManualStatus] = useState<'Unpaid' | 'Paid' | 'Sent'>('Unpaid');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'InvoiceDate', direction: 'desc' });
 
-    // Form State
+    // 表单状态
     const [selectedClientId, setSelectedClientId] = useState<number | null>(filterClientId || null);
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
     const [dueDate, setDueDate] = useState<string>('');
     const [items, setItems] = useState<InvoiceItem[]>([]);
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<number>>(new Set());
 
-    // Pagination
+    // 分页
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const handleChangePage = (event: unknown, newPage: number) => setPage(newPage);
@@ -70,10 +73,10 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setPage(0);
     };
 
-    // Product Search
+    // 产品搜索
     const [searchTerm, setSearchTerm] = useState('');
 
-    // UI Feedback
+    // UI 反馈
     const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' | 'warning' }>({
         open: false, message: '', severity: 'info'
     });
@@ -81,7 +84,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         open: false, message: '', onConfirm: () => { }
     });
 
-    // Unit Management
+    // 单位管理
     const [isUnitManagerOpen, setIsUnitManagerOpen] = useState(false);
 
     const saveUnit = async (name: string) => {
@@ -127,7 +130,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setLoading(false);
     };
 
-    // Date Helper to avoid timezone shifts
+    // 日期助手，避免时区偏移
     const toLocalYMD = (val: Date | string) => {
         const d = new Date(val);
         const year = d.getFullYear();
@@ -144,11 +147,11 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setManualId(String(nextId));
         setManualStatus('Unpaid');
 
-        // Use local date for default
+        // 默认使用本地日期
         setInvoiceDate(toLocalYMD(new Date()));
 
-        // Due Date: End of next month (approx logic or exact?)
-        // Original: new Date(new Date().getFullYear(), new Date().getMonth() + 2, 0) -> Last day of next month
+        // 截止日期：下个月底 (近似逻辑或精确？)
+        // 原文：new Date(new Date().getFullYear(), new Date().getMonth() + 2, 0) -> 下个月最后一天
         const today = new Date();
         const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
         setDueDate(toLocalYMD(nextMonthEnd));
@@ -156,22 +159,22 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         if (filterClientId) setSelectedClientId(filterClientId);
     };
 
-    // Keyboard Shortcuts
+    // 快捷键
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (!isCreateMode) return;
 
-            // Ctrl+S to Save
+            // Ctrl+S 保存
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 // Determine if creating or updating
                 handleSave(editingInvoice ? 'update' : 'create');
             }
 
-            // Esc to Close (only if no other dialogs are open)
+            // Esc 关闭 (仅当没有其他对话框打开时)
             if (e.key === 'Escape' && !confirmDialog.open && !isUnitManagerOpen) {
-                // Confirm before closing if there are changes?
-                // For now, just follow existing "Cancel" behavior which doesn't confirm
+                // 关闭前确认是否有更改？
+                // 目前，仅遵循现有的“取消”行为，不进行确认
                 setIsCreateMode(false);
                 setEditingInvoice(null);
                 setItems([]);
@@ -236,7 +239,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setViewInvoice(null);
         setIsCreateMode(true);
 
-        // Populate Form
+        // 填充表单
         setSelectedClientId(invoice.ClientID);
         setInvoiceDate(toLocalYMD(invoice.InvoiceDate));
         setDueDate(invoice.DueDate ? toLocalYMD(invoice.DueDate) : '');
@@ -599,7 +602,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     </div>
                 </div>
 
-                {/* Table */}
+                {/* 表格 */}
                 <table className="w-full border-collapse border border-blue-600 text-xs mb-4">
                     <thead className="print:table-header-group">
                         <tr className="bg-blue-600 text-white print:bg-blue-600 print-color-adjust">
@@ -612,7 +615,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             <th className="border border-blue-400 py-1 px-2 w-24">金額</th>
                         </tr>
                     </thead>
-                    {/* General Items Body */}
+                    {/* 通用项目主体 */}
                     {generalItems.length > 0 && (
                         <tbody>
                             {generalItems.map((item, idx) => (
@@ -634,7 +637,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         </tbody>
                     )}
 
-                    {/* Project Bodies */}
+                    {/* 项目主体 */}
                     {projects.map(project => (
                         <tbody key={project} className="print:break-inside-avoid">
                             {groupedItems[project].map((item, idx) => (
@@ -653,7 +656,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                     <td className="border border-blue-600 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
                                 </tr>
                             ))}
-                            {/* Project Footer Separator */}
+                            {/* 项目页脚分隔符 */}
                             <tr className="text-center font-bold bg-blue-50/50 print:bg-transparent">
                                 <td className="border border-blue-600 py-1 print:border-x-blue-600" colSpan={7}>
                                     ----- {project} -----
@@ -662,7 +665,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         </tbody>
                     ))}
 
-                    {/* Empty Filler Body */}
+                    {/* 空填充主体 */}
                     <tbody>
                         {Array.from({ length: Math.max(0, 10 - items.length - projects.length) }).map((_, i) => (
                             <tr key={`empty - ${i} `} className="text-center h-6">
@@ -678,7 +681,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     </tbody>
                 </table>
 
-                {/* Summary Table at Bottom Right */}
+                {/* 右下角汇总表 */}
                 <div className="flex justify-end">
                     <table className="w-[300px] border-collapse border border-blue-600 text-xs text-center">
                         <thead>
@@ -711,7 +714,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     </table>
                 </div>
 
-                {/* Remarks */}
+                {/* 备注 */}
                 <div className="mt-8 border border-blue-600 rounded min-h-[100px] p-2">
                     <div className="bg-blue-600 text-white text-xs px-2 py-0.5 inline-block rounded mb-2 print:bg-blue-600 print-color-adjust">備考</div>
                 </div>
@@ -720,7 +723,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     };
 
     // View Modal
-    // View Modal
+    // 查看模态框
     if (viewInvoice) {
         return (
             <Dialog
@@ -795,338 +798,717 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         );
     }
 
-    // Create Form
+    // 创建表单
     if (isCreateMode) {
         return (
-            <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1, minHeight: '80vh' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
-                    <Typography variant="h5" fontWeight="bold">
-                        {editingInvoice ? `${t('common.invoices_edit', 'Edit Invoice')} #${String(editingInvoice.ID).padStart(8, '0')} ` : t('invoices_create_title', 'Create New Invoice')}
-                    </Typography>
-                    <Button
-                        onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }}
-                        variant="outlined"
-                        color="secondary"
-                    >
-                        {t('common.cancel', 'Cancel')}
-                    </Button>
-                </Box>
+            <PageTransition>
+                <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1, minHeight: '80vh' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
+                        <Typography variant="h5" fontWeight="bold">
+                            {editingInvoice ? `${t('common.invoices_edit', 'Edit Invoice')} #${String(editingInvoice.ID).padStart(8, '0')} ` : t('invoices_create_title', 'Create New Invoice')}
+                        </Typography>
+                        <Button
+                            onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }}
+                            variant="outlined"
+                            color="secondary"
+                        >
+                            {t('common.cancel', 'Cancel')}
+                        </Button>
+                    </Box>
 
 
-                <Grid container spacing={2} sx={{ mb: 4 }}>
-                    {/* Status Select: Show only when editing existing invoice or manual ID is present */}
-                    {/* Status Select: Show ONLY when editing existing invoice (editingInvoice is set). Hide for new invoices. */}
-                    {editingInvoice && (
+                    <Grid container spacing={2} sx={{ mb: 4 }}>
+                        {/* 状态选择：仅在编辑现有发票时显示（设置了 editingInvoice）。新发票隐藏。 */}
+                        {/* Status Select: Show ONLY when editing existing invoice (editingInvoice is set). Hide for new invoices. */}
+                        {editingInvoice && (
+                            <Grid size={2}>
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label={t('invoices_status', 'Status')}
+                                    value={manualStatus}
+                                    onChange={(e: any) => setManualStatus(e.target.value)}
+                                    variant="outlined"
+                                >
+                                    <MenuItem value="Unpaid">{t('status_unpaid', 'Unsent')}</MenuItem>
+                                    <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
+                                    <MenuItem value="Paid">{t('status_paid', 'Paid')}</MenuItem>
+                                </TextField>
+                            </Grid>
+                        )}
                         <Grid size={2}>
+                            <TextField
+                                label={t('invoices_manual_id', 'Invoice ID')}
+                                value={manualId}
+                                onChange={(e) => setManualId(e.target.value)}
+                                fullWidth
+                                variant="outlined"
+                                disabled={false}
+                            />
+                        </Grid>
+                        <Grid size={4}>
                             <TextField
                                 select
                                 fullWidth
-                                label={t('invoices_status', 'Status')}
-                                value={manualStatus}
-                                onChange={(e: any) => setManualStatus(e.target.value)}
+                                label={t('invoices_client', 'Client')}
+                                value={selectedClientId || ''}
+                                onChange={(e) => {
+                                    setSelectedClientId(Number(e.target.value));
+                                    setItems([]);
+                                }}
                                 variant="outlined"
                             >
-                                <MenuItem value="Unpaid">{t('status_unpaid', 'Unsent')}</MenuItem>
-                                <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
-                                <MenuItem value="Paid">{t('status_paid', 'Paid')}</MenuItem>
+                                <MenuItem value=""><em>{t('invoices_select_client_placeholder', 'Select Client...')}</em></MenuItem>
+                                {clients.filter(c => c.IsActive).map(c => (
+                                    <MenuItem key={c.ID} value={c.ID}>{c.Name}</MenuItem>
+                                ))}
                             </TextField>
                         </Grid>
-                    )}
-                    <Grid size={2}>
-                        <TextField
-                            label={t('invoices_manual_id', 'Invoice ID')}
-                            value={manualId}
-                            onChange={(e) => setManualId(e.target.value)}
-                            fullWidth
-                            variant="outlined"
-                            disabled={false}
-                        />
-                    </Grid>
-                    <Grid size={4}>
-                        <TextField
-                            select
-                            fullWidth
-                            label={t('invoices_client', 'Client')}
-                            value={selectedClientId || ''}
-                            onChange={(e) => {
-                                setSelectedClientId(Number(e.target.value));
-                                setItems([]);
-                            }}
-                            variant="outlined"
-                        >
-                            <MenuItem value=""><em>{t('invoices_select_client_placeholder', 'Select Client...')}</em></MenuItem>
-                            {clients.filter(c => c.IsActive).map(c => (
-                                <MenuItem key={c.ID} value={c.ID}>{c.Name}</MenuItem>
-                            ))}
-                        </TextField>
-                    </Grid>
-                    <Grid size={2}>
-                        <TextField
-                            type="date"
-                            fullWidth
-                            label={t('invoices_date', 'Date')}
-                            InputLabelProps={{ shrink: true }}
-                            value={invoiceDate}
-                            onChange={(e: any) => setInvoiceDate(e.target.value)}
-                            variant="outlined"
-                        />
-                    </Grid>
-                    <Grid size={2}>
-                        <TextField
-                            type="date"
-                            fullWidth
-                            label={t('invoices_due_date', 'Due Date')}
-                            InputLabelProps={{ shrink: true }}
-                            value={dueDate}
-                            onChange={(e: any) => setDueDate(e.target.value)}
-                            variant="outlined"
-                        />
-                    </Grid>
-                </Grid>
-
-                {/* Items Section */}
-                <Box sx={{ mb: 4 }}>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>{t('invoices_line_items', 'Line Items')}</Typography>
-                    <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
-                        <Table size="small">
-                            <TableHead sx={{ bgcolor: 'grey.50' }}>
-                                <TableRow>
-                                    <TableCell width="120">{t('invoices_date', 'Date')}</TableCell>
-                                    <TableCell width="250">{t('products_name', 'Product')}</TableCell>
-                                    <TableCell width="100">{t('invoices_unit_price', 'Unit Price')}</TableCell>
-                                    <TableCell width="80">{t('invoices_quantity', 'Qty')}</TableCell>
-                                    <TableCell width="120">
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            {t('invoices_unit', 'Unit')}
-                                            <IconButton size="small" onClick={() => setIsUnitManagerOpen(true)}>
-                                                <EditIcon sx={{ fontSize: 14 }} />
-                                            </IconButton>
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell align="right" width="120">{t('invoices_total', 'Total')}</TableCell>
-                                    <TableCell>{t('invoices_remarks', 'Remarks')}</TableCell>
-                                    <TableCell width="50"></TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {items.map((item, idx) => (
-                                    <TableRow key={idx}>
-                                        <TableCell>
-                                            <TextField
-                                                type="date"
-                                                fullWidth
-                                                variant="standard"
-                                                InputProps={{ disableUnderline: true }}
-                                                value={item.ItemDate}
-                                                onChange={(e: any) => updateItem(idx, 'ItemDate', e.target.value)}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Autocomplete
-                                                freeSolo
-                                                options={availableProducts}
-                                                getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name}`}
-                                                filterOptions={filterOptions}
-                                                value={item.ProductName}
-                                                onChange={(_, newValue) => {
-                                                    if (typeof newValue !== 'string' && newValue) {
-                                                        const newItems = [...items];
-                                                        newItems[idx] = {
-                                                            ...newItems[idx],
-                                                            ProductID: newValue.ID,
-                                                            ProductName: newValue.Name,
-                                                            UnitPrice: newValue.UnitPrice,
-                                                            TaxRate: newValue.TaxRate || 10,
-                                                            Project: newValue.Project
-                                                        };
-                                                        setItems(newItems);
-                                                    } else if (typeof newValue === 'string') {
-                                                        updateItem(idx, 'ProductName', newValue);
-                                                    }
-                                                }}
-                                                onInputChange={(_, newInputValue) => {
-                                                    // Only update name on typing if it's not a selection event (handled by onChange usually, but needed for clearing/typing)
-                                                    updateItem(idx, 'ProductName', newInputValue);
-                                                }}
-                                                renderOption={(props, option) => {
-                                                    const prod = option as Product;
-                                                    return (
-                                                        <li {...props} key={prod.ID}>
-                                                            <Box>
-                                                                <Typography variant="body2">{prod.Name}</Typography>
-                                                                <Typography variant="caption" color="text.secondary">
-                                                                    {prod.Project ? `${prod.Project} - ` : ''}{prod.Code} - ¥{prod.UnitPrice}
-                                                                </Typography>
-                                                            </Box>
-                                                        </li>
-                                                    );
-                                                }}
-                                                renderInput={(params) => (
-                                                    <TextField
-                                                        {...params}
-                                                        fullWidth
-                                                        variant="standard"
-                                                        placeholder={t('products_name', 'Product Name')}
-                                                        InputProps={{ ...params.InputProps, disableUnderline: true }}
-                                                    />
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <TextField
-                                                type="number"
-                                                fullWidth
-                                                variant="standard"
-                                                InputProps={{ disableUnderline: true }}
-                                                inputProps={{ style: { textAlign: 'right' } }}
-                                                value={item.UnitPrice}
-                                                onChange={(e: any) => updateItem(idx, 'UnitPrice', Number(e.target.value))}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <TextField
-                                                type="number"
-                                                fullWidth
-                                                variant="standard"
-                                                InputProps={{ disableUnderline: true }}
-                                                inputProps={{ style: { textAlign: 'center', fontWeight: 'bold' } }}
-                                                value={item.Quantity}
-                                                onChange={(e: any) => updateItem(idx, 'Quantity', Number(e.target.value))}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Autocomplete
-                                                freeSolo
-                                                options={units.map((u) => u.Name)}
-                                                value={item.Unit || ''}
-                                                onInputChange={(_, newValue) => updateItem(idx, 'Unit', newValue)}
-                                                renderInput={(params) => (
-                                                    <TextField
-                                                        {...params}
-                                                        variant="standard"
-                                                        placeholder="-"
-                                                        InputProps={{ ...params.InputProps, disableUnderline: true }}
-                                                    />
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
-                                            ¥{(item.Quantity * item.UnitPrice).toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            <TextField
-                                                fullWidth
-                                                variant="standard"
-                                                placeholder={t('invoices_remarks', 'Memo')}
-                                                InputProps={{ disableUnderline: true }}
-                                                value={item.Remarks || ''}
-                                                onChange={(e: any) => updateItem(idx, 'Remarks', e.target.value)}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <IconButton size="small" color="error" onClick={() => removeItem(idx)}>
-                                                <CloseIcon fontSize="small" />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-
-                    {/* Add Item Row with Search */}
-                    <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px dashed', borderColor: 'grey.300', display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ position: 'relative', flex: 1 }}>
-                            <Autocomplete
-                                freeSolo
-                                options={availableProducts}
-                                getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code})`}
-                                onChange={(_, newValue) => {
-                                    if (typeof newValue !== 'string' && newValue) {
-                                        addItem(newValue);
-                                    }
-                                }}
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        placeholder={t('invoices_search_product_placeholder', 'Search product to add...')}
-                                        size="small"
-                                        InputProps={{
-                                            ...params.InputProps,
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <SearchIcon color="action" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                        disabled={!selectedClientId}
-                                    />
-                                )}
-                                renderOption={(props, option) => (
-                                    <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <div>
-                                            <Typography variant="body2" color="text.primary">{option.Name}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{option.Code}</Typography>
-                                        </div>
-                                        <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
-                                            ¥{option.UnitPrice.toLocaleString()}
-                                        </Typography>
-                                    </li>
-                                )}
+                        <Grid size={2}>
+                            <TextField
+                                type="date"
+                                fullWidth
+                                label={t('invoices_date', 'Date')}
+                                InputLabelProps={{ shrink: true }}
+                                value={invoiceDate}
+                                onChange={(e: any) => setInvoiceDate(e.target.value)}
+                                variant="outlined"
                             />
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">
-                            {t('common.or', 'Or')} <Button size="small" onClick={() => addItem()}>{t('invoices_add_empty_row', 'Add Empty Row')}</Button>
-                        </Typography>
-                    </Box>
-                </Box>
+                        </Grid>
+                        <Grid size={2}>
+                            <TextField
+                                type="date"
+                                fullWidth
+                                label={t('invoices_due_date', 'Due Date')}
+                                InputLabelProps={{ shrink: true }}
+                                value={dueDate}
+                                onChange={(e: any) => setDueDate(e.target.value)}
+                                variant="outlined"
+                            />
+                        </Grid>
+                    </Grid>
 
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 3, borderTop: 1, borderColor: 'divider' }}>
-                    <Box sx={{ width: 300 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
-                            <Typography>{t('invoices_subtotal', 'Subtotal')}</Typography>
-                            <Typography>¥{calculateTaxSummary().subtotal.toLocaleString()}</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
-                            <Typography>{t('invoices_tax_total', 'Tax (Total)')}</Typography>
-                            <Typography>¥{calculateTaxSummary().totalTax.toLocaleString()}</Typography>
-                        </Box>
-                        {calculateTaxSummary().reducedSubtotal > 0 && (
-                            <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mb: 1, color: 'text.disabled' }}>
-                                ({t('invoices_tax_standard', 'Standard')}: ¥{calculateTaxSummary().standardTax}, {t('invoices_tax_reduced', 'Reduced')}: ¥{calculateTaxSummary().reducedTax})
+                    {/* 项目部分 */}
+                    <Box sx={{ mb: 4 }}>
+                        <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>{t('invoices_line_items', 'Line Items')}</Typography>
+                        <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                            <Table size="small">
+                                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                                    <TableRow>
+                                        <TableCell width="120">{t('invoices_date', 'Date')}</TableCell>
+                                        <TableCell width="250">{t('products_name', 'Product')}</TableCell>
+                                        <TableCell width="100">{t('invoices_unit_price', 'Unit Price')}</TableCell>
+                                        <TableCell width="80">{t('invoices_quantity', 'Qty')}</TableCell>
+                                        <TableCell width="120">
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                {t('invoices_unit', 'Unit')}
+                                                <IconButton size="small" onClick={() => setIsUnitManagerOpen(true)}>
+                                                    <EditIcon sx={{ fontSize: 14 }} />
+                                                </IconButton>
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell align="right" width="120">{t('invoices_total', 'Total')}</TableCell>
+                                        <TableCell>{t('invoices_remarks', 'Remarks')}</TableCell>
+                                        <TableCell width="50"></TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {items.map((item, idx) => (
+                                        <TableRow key={idx}>
+                                            <TableCell>
+                                                <TextField
+                                                    type="date"
+                                                    fullWidth
+                                                    variant="standard"
+                                                    InputProps={{ disableUnderline: true }}
+                                                    value={item.ItemDate}
+                                                    onChange={(e: any) => updateItem(idx, 'ItemDate', e.target.value)}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Autocomplete
+                                                    freeSolo
+                                                    options={availableProducts}
+                                                    getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name}`}
+                                                    filterOptions={filterOptions}
+                                                    value={item.ProductName}
+                                                    onChange={(_, newValue) => {
+                                                        if (typeof newValue !== 'string' && newValue) {
+                                                            const newItems = [...items];
+                                                            newItems[idx] = {
+                                                                ...newItems[idx],
+                                                                ProductID: newValue.ID,
+                                                                ProductName: newValue.Name,
+                                                                UnitPrice: newValue.UnitPrice,
+                                                                TaxRate: newValue.TaxRate || 10,
+                                                                Project: newValue.Project
+                                                            };
+                                                            setItems(newItems);
+                                                        } else if (typeof newValue === 'string') {
+                                                            updateItem(idx, 'ProductName', newValue);
+                                                        }
+                                                    }}
+                                                    onInputChange={(_, newInputValue) => {
+                                                        // Only update name on typing if it's not a selection event (handled by onChange usually, but needed for clearing/typing)
+                                                        updateItem(idx, 'ProductName', newInputValue);
+                                                    }}
+                                                    renderOption={(props, option) => {
+                                                        const prod = option as Product;
+                                                        return (
+                                                            <li {...props} key={prod.ID}>
+                                                                <Box>
+                                                                    <Typography variant="body2">{prod.Name}</Typography>
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        {prod.Project ? `${prod.Project} - ` : ''}{prod.Code} - ¥{prod.UnitPrice}
+                                                                    </Typography>
+                                                                </Box>
+                                                            </li>
+                                                        );
+                                                    }}
+                                                    renderInput={(params) => (
+                                                        <TextField
+                                                            {...params}
+                                                            fullWidth
+                                                            variant="standard"
+                                                            placeholder={t('products_name', 'Product Name')}
+                                                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                                                        />
+                                                    )}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <TextField
+                                                    type="number"
+                                                    fullWidth
+                                                    variant="standard"
+                                                    InputProps={{ disableUnderline: true }}
+                                                    inputProps={{ style: { textAlign: 'right' } }}
+                                                    value={item.UnitPrice}
+                                                    onChange={(e: any) => updateItem(idx, 'UnitPrice', Number(e.target.value))}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <TextField
+                                                    type="number"
+                                                    fullWidth
+                                                    variant="standard"
+                                                    InputProps={{ disableUnderline: true }}
+                                                    inputProps={{ style: { textAlign: 'center', fontWeight: 'bold' } }}
+                                                    value={item.Quantity}
+                                                    onChange={(e: any) => updateItem(idx, 'Quantity', Number(e.target.value))}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Autocomplete
+                                                    freeSolo
+                                                    options={units.map((u) => u.Name)}
+                                                    value={item.Unit || ''}
+                                                    onInputChange={(_, newValue) => updateItem(idx, 'Unit', newValue)}
+                                                    renderInput={(params) => (
+                                                        <TextField
+                                                            {...params}
+                                                            variant="standard"
+                                                            placeholder="-"
+                                                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                                                        />
+                                                    )}
+                                                />
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
+                                                ¥{(item.Quantity * item.UnitPrice).toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                <TextField
+                                                    fullWidth
+                                                    variant="standard"
+                                                    placeholder={t('invoices_remarks', 'Memo')}
+                                                    InputProps={{ disableUnderline: true }}
+                                                    value={item.Remarks || ''}
+                                                    onChange={(e: any) => updateItem(idx, 'Remarks', e.target.value)}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <IconButton size="small" color="error" onClick={() => removeItem(idx)}>
+                                                    <CloseIcon fontSize="small" />
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+
+                        {/* 带搜索的添加项目行 */}
+                        <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px dashed', borderColor: 'grey.300', display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Box sx={{ position: 'relative', flex: 1 }}>
+                                <Autocomplete
+                                    freeSolo
+                                    options={availableProducts}
+                                    getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code})`}
+                                    onChange={(_, newValue) => {
+                                        if (typeof newValue !== 'string' && newValue) {
+                                            addItem(newValue);
+                                        }
+                                    }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            placeholder={t('invoices_search_product_placeholder', 'Search product to add...')}
+                                            size="small"
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <SearchIcon color="action" />
+                                                    </InputAdornment>
+                                                ),
+                                            }}
+                                            disabled={!selectedClientId}
+                                        />
+                                    )}
+                                    renderOption={(props, option) => (
+                                        <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <div>
+                                                <Typography variant="body2" color="text.primary">{option.Name}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{option.Code}</Typography>
+                                            </div>
+                                            <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
+                                                ¥{option.UnitPrice.toLocaleString()}
+                                            </Typography>
+                                        </li>
+                                    )}
+                                />
+                            </Box>
+                            <Typography variant="caption" color="text.secondary">
+                                {t('common.or', 'Or')} <Button size="small" onClick={() => addItem()}>{t('invoices_add_empty_row', 'Add Empty Row')}</Button>
                             </Typography>
-                        )}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: 1, borderColor: 'divider', mb: 2 }}>
-                            <Typography variant="h6" fontWeight="bold">{t('invoices_total_final', 'Total')}</Typography>
-                            <Typography variant="h6" fontWeight="bold">¥{calculateTotal().toLocaleString()}</Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
-                            {editingInvoice && (
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 3, borderTop: 1, borderColor: 'divider' }}>
+                        <Box sx={{ width: 300 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
+                                <Typography>{t('invoices_subtotal', 'Subtotal')}</Typography>
+                                <Typography>¥{calculateTaxSummary().subtotal.toLocaleString()}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
+                                <Typography>{t('invoices_tax_total', 'Tax (Total)')}</Typography>
+                                <Typography>¥{calculateTaxSummary().totalTax.toLocaleString()}</Typography>
+                            </Box>
+                            {calculateTaxSummary().reducedSubtotal > 0 && (
+                                <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mb: 1, color: 'text.disabled' }}>
+                                    ({t('invoices_tax_standard', 'Standard')}: ¥{calculateTaxSummary().standardTax}, {t('invoices_tax_reduced', 'Reduced')}: ¥{calculateTaxSummary().reducedTax})
+                                </Typography>
+                            )}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: 1, borderColor: 'divider', mb: 2 }}>
+                                <Typography variant="h6" fontWeight="bold">{t('invoices_total_final', 'Total')}</Typography>
+                                <Typography variant="h6" fontWeight="bold">¥{calculateTotal().toLocaleString()}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
+                                {editingInvoice && (
+                                    <Button
+                                        fullWidth
+                                        variant="outlined"
+                                        color="primary"
+                                        size="large"
+                                        onClick={() => handleSave('create')} // Save as New -> Create
+                                    >
+                                        {t('common.save_as_new', 'Save as New')}
+                                    </Button>
+                                )}
                                 <Button
                                     fullWidth
-                                    variant="outlined"
+                                    variant="contained"
                                     color="primary"
                                     size="large"
-                                    onClick={() => handleSave('create')} // Save as New -> Create
+                                    onClick={() => handleSave(editingInvoice ? 'update' : 'create')}
                                 >
-                                    {t('common.save_as_new', 'Save as New')}
+                                    {editingInvoice ? t('common.overwrite', 'Save (Overwrite)') : t('invoices_save', 'Save Invoice')}
                                 </Button>
-                            )}
-                            <Button
-                                fullWidth
-                                variant="contained"
-                                color="primary"
-                                size="large"
-                                onClick={() => handleSave(editingInvoice ? 'update' : 'create')}
-                            >
-                                {editingInvoice ? t('common.overwrite', 'Save (Overwrite)') : t('invoices_save', 'Save Invoice')}
-                            </Button>
+                            </Box>
                         </Box>
                     </Box>
-                </Box>
 
 
-                {/* Shared Dialogs for Create Mode */}
+                    {/* 创建模式的共享对话框 */}
+                    <Dialog open={isUnitManagerOpen} onClose={() => setIsUnitManagerOpen(false)} maxWidth="xs" fullWidth>
+                        <Box sx={{ p: 2 }}>
+                            <Typography variant="h6" gutterBottom>{t('unit_manage', 'Manage Units')}</Typography>
+                            <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                                {units.length === 0 ? <Typography variant="body2" color="text.secondary">No saved units.</Typography> : (
+                                    units.map(u => (
+                                        <Box key={u.ID} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: '1px solid #eee' }}>
+                                            <Typography>{u.Name}</Typography>
+                                            <IconButton size="small" color="error" onClick={() => {
+                                                setConfirmDialog({
+                                                    open: true,
+                                                    title: t('common.delete', 'Delete Unit'),
+                                                    message: `Delete unit "${u.Name}"?`,
+                                                    onConfirm: async () => {
+                                                        await unitService.delete(u.ID);
+                                                        const updated = await unitService.getAll();
+                                                        setUnits(updated);
+                                                        setConfirmDialog(p => ({ ...p, open: false }));
+                                                    }
+                                                });
+                                            }}>
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </Box>
+                                    ))
+                                )}
+                            </Box>
+                            <Box sx={{ mt: 2, textAlign: 'right' }}>
+                                <Button onClick={() => setIsUnitManagerOpen(false)}>{t('common.close', 'Close')}</Button>
+                            </Box>
+                        </Box>
+                    </Dialog>
+
+                    <ConfirmDialog
+                        open={confirmDialog.open}
+                        title={confirmDialog.title}
+                        message={confirmDialog.message}
+                        onConfirm={confirmDialog.onConfirm}
+                        onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                    />
+
+                    <Snackbar
+                        open={toast.open}
+                        autoHideDuration={3000}
+                        onClose={handleCloseToast}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                    >
+                        <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%' }}>
+                            {toast.message}
+                        </Alert>
+                    </Snackbar>
+
+                    <LoadingOverlay open={loading} />
+                </Box >
+            </PageTransition>
+        );
+    }
+
+    // 列表视图
+    return (
+        <PageTransition>
+            <Box sx={{ p: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                            {t('invoices', 'Invoices')}
+                        </Typography>
+                        {selectedInvoiceIds.size > 0 && (
+                            <Button
+                                variant="outlined"
+                                startIcon={<PrintIcon />}
+                                onClick={handleMergeAndPrint}
+                            >
+                                {t('invoices_merge_print', 'Merge & Print')} ({selectedInvoiceIds.size})
+                            </Button>
+                        )
+                        }
+                        {
+                            selectedInvoiceIds.size > 0 && (
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    startIcon={<DeleteIcon />}
+                                    onClick={() => {
+                                        setConfirmDialog({
+                                            open: true,
+                                            title: t('common.delete', 'Delete'),
+                                            message: t('common.confirm_delete', 'Are you sure?'),
+                                            onConfirm: handleBulkDelete
+                                        });
+                                    }}
+                                >
+                                    {t('common.delete')} ({selectedInvoiceIds.size})
+                                </Button>
+                            )
+                        }
+                        <TextField
+                            select
+                            label={t('invoices_status', 'Status')}
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                            variant="outlined"
+                            size="small"
+                            sx={{ width: 120, bgcolor: 'background.paper' }}
+                        >
+                            <MenuItem value="All">{t('common.all', 'All')}</MenuItem>
+                            <MenuItem value="Unpaid">{t('status_unpaid', 'Unpaid')}</MenuItem>
+                            <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
+                        </TextField>
+                        <TextField
+                            type="month"
+                            variant="outlined"
+                            size="small"
+                            value={monthFilter}
+                            onChange={e => setMonthFilter(e.target.value)}
+                            sx={{ bgcolor: 'background.paper' }}
+                        />
+                    </Box >
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<AddIcon />}
+                        onClick={handleCreateNew}
+                    >
+                        {t('invoices_new_invoice_btn', 'New Invoice')}
+                    </Button>
+                </Box >
+
+                <TableContainer component={Paper} elevation={1}>
+                    <Table sx={{ minWidth: 650 }} aria-label="invoice table">
+                        <TableHead sx={{ bgcolor: 'grey.50' }}>
+                            <TableRow>
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        indeterminate={selectedInvoiceIds.size > 0 && selectedInvoiceIds.size < sortedInvoices.length}
+                                        checked={sortedInvoices.length > 0 && selectedInvoiceIds.size === sortedInvoices.length}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedInvoiceIds(new Set(sortedInvoices.map(i => i.ID)));
+                                            } else {
+                                                setSelectedInvoiceIds(new Set());
+                                            }
+                                        }}
+                                    />
+                                </TableCell>
+                                <TableCell onClick={() => handleSort('InvoiceDate')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                    {t('invoices_col_date', 'Date')} {sortConfig.key === 'InvoiceDate' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </TableCell>
+                                <TableCell onClick={() => handleSort('ID')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                    {t('invoices_col_id', 'ID')} {sortConfig.key === 'ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </TableCell>
+                                {!filterClientId && (
+                                    <TableCell onClick={() => handleSort('ClientName')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                        {t('invoices_col_client', 'Client')} {sortConfig.key === 'ClientName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </TableCell>
+                                )}
+                                <TableCell align="right" onClick={() => handleSort('TotalAmount')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                    {t('invoices_col_amount', 'Amount')} {sortConfig.key === 'TotalAmount' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>{t('invoices_status', 'Status')}</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('invoices_col_actions', 'Actions')}</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody component={motion.tbody} variants={containerVariants} initial="hidden" animate="visible">
+                            {sortedInvoices.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                        {t('invoices_no_invoices', 'No invoices found.')}
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                sortedInvoices
+                                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                    .map((invoice) => (
+                                        <TableRow
+                                            key={invoice.ID}
+                                            component={motion.tr}
+                                            variants={itemVariants}
+                                            hover
+                                            onClick={() => setViewInvoice(invoice)}
+                                            sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
+                                            selected={selectedInvoiceIds.has(invoice.ID)}
+                                        >
+                                            <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                    checked={selectedInvoiceIds.has(invoice.ID)}
+                                                    onChange={(e: any) => {
+                                                        const newSet = new Set(selectedInvoiceIds);
+                                                        if (e.target.checked) newSet.add(invoice.ID);
+                                                        else newSet.delete(invoice.ID);
+                                                        setSelectedInvoiceIds(newSet);
+                                                    }}
+                                                />
+                                            </TableCell>
+                                            <TableCell component="th" scope="row" sx={{ fontFamily: 'monospace' }}>
+                                                {new Date(invoice.InvoiceDate).toLocaleDateString()}
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                                                #{String(invoice.ID).padStart(8, '0')}
+                                            </TableCell>
+                                            {!filterClientId && (
+                                                <TableCell sx={{ fontWeight: 500 }}>
+                                                    {((invoice.Items && invoice.Items.length > 0 && invoice.Items[0].Project) || clients.find(c => c.ID === invoice.ClientID)?.Name || 'Unknown')}
+                                                </TableCell>
+                                            )}
+                                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                                ¥{invoice.TotalAmount.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+
+                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    <Typography variant="caption" sx={{ mr: 1, color: invoice.Status === 'Sent' ? 'text.secondary' : 'error.main', fontWeight: 'bold' }}>
+                                                        {invoice.Status === 'Sent' ? t('status_sent', 'Sent') : t('status_unpaid', 'Unsent')}
+                                                    </Typography>
+                                                    <Switch
+                                                        size="small"
+                                                        checked={invoice.Status === 'Sent'}
+                                                        onChange={async (e: any) => {
+                                                            const newStatus = e.target.checked ? 'Sent' : 'Unpaid';
+
+                                                            // 乐观更新
+                                                            setInvoices(prev => prev.map(inv => inv.ID === invoice.ID ? { ...inv, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' } : inv));
+
+                                                            try {
+                                                                const updated = { ...invoice, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' };
+                                                                await invoiceService.update(updated);
+                                                                // 不重新获取以防止跳动
+                                                            } catch (err) {
+                                                                // 出错时恢复
+                                                                setInvoices(prev => prev.map(inv => inv.ID === invoice.ID ? invoice : inv));
+                                                                console.error("Status update failed", err);
+                                                            }
+                                                        }}
+                                                        color="primary"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                </Box>
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <Button
+                                                    size="small"
+                                                    startIcon={<VisibilityIcon />}
+                                                    onClick={(e) => { e.stopPropagation(); setViewInvoice(invoice); }}
+                                                    sx={{ mr: 1 }}
+                                                >
+                                                    {t('common.view', 'View')}
+                                                </Button>
+                                                <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(invoice.ID); }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    )))}
+
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TablePagination
+                    rowsPerPageOptions={[10, 25, 50]}
+                    component="div"
+                    count={sortedInvoices.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    labelRowsPerPage={t('rows_per_page')}
+                    labelDisplayedRows={({ from, to, count }) => t('page_info', { from, to, count })}
+                />
+
+                {/* Invoice Preview Modal */}
+                {
+                    viewInvoice && (
+                        <Dialog
+                            fullScreen
+                            open={true}
+                            onClose={() => setViewInvoice(null)}
+                            PaperProps={{ sx: { bgcolor: 'background.default' } }}
+                        >
+                            <Box sx={{ p: 2, bgcolor: 'white', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="print:hidden">
+                                <Typography variant="h6">{t('invoices_preview_title', 'Invoice Preview')}</Typography>
+                                <Box>
+                                    <Button onClick={() => window.print()} startIcon={<PrintIcon />} sx={{ mr: 1 }} variant="contained" color="primary">
+                                        {t('invoices_btn_print', 'Print')}
+                                    </Button>
+                                    <Button onClick={() => setViewInvoice(null)} variant="outlined" color="secondary">
+                                        {t('invoices_btn_close', 'Close')}
+                                    </Button>
+                                </Box>
+                            </Box>
+
+                            <Box sx={{ p: 8, maxWidth: '210mm', mx: 'auto', bgcolor: 'white', minHeight: '297mm', my: 2, boxShadow: 3 }} className="print:shadow-none print:m-0 print:w-full print:p-0">
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 6 }}>
+                                    <Typography variant="h3" fontWeight="bold" color="primary" sx={{ letterSpacing: 2 }}>{t('invoices_title', 'INVOICE')}</Typography>
+                                    <Box sx={{ textAlign: 'right' }}>
+                                        <Typography variant="body1"><strong>{t('invoices_date', 'Date')}:</strong> {viewInvoice ? new Date((viewInvoice as any).InvoiceDate).toLocaleDateString() : ''}</Typography>
+                                        <Typography variant="body1"><strong>ID:</strong> #{viewInvoice ? String((viewInvoice as any).ID).padStart(8, '0') : ''}</Typography>
+                                        {/* Always render, check validity */}
+                                        {(viewInvoice as any)?.DueDate ? (
+                                            <Typography variant="body1" color="error"><strong>{t('invoices_due_date', 'Due Date')}:</strong> {new Date((viewInvoice as any).DueDate).toLocaleDateString()}</Typography>
+                                        ) : null}
+                                    </Box>
+                                </Box>
+
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 8, alignItems: 'flex-start' }}>
+                                    <Box sx={{ width: '50%' }}>
+                                        {viewInvoice && (
+                                            <Typography variant="h5" fontWeight="bold" sx={{ borderBottom: 2, borderColor: 'divider', pb: 1, mb: 2, display: 'inline-block' }}>
+                                                {clients.find(c => c.ID === (viewInvoice as any).ClientID)?.Name} <span style={{ fontSize: '0.6em', fontWeight: 'normal' }}>{t('common_honorific', '御中')}</span>
+                                            </Typography>
+                                        )}
+                                        <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{clients.find(c => c.ID === (viewInvoice as any)?.ClientID)?.Address}</Typography>
+                                    </Box>
+
+                                    <Box sx={{ width: '40%', textAlign: 'right' }}>
+                                        {settings.Logo && (
+                                            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                                                <img src={settings.Logo} alt="Logo" style={{ height: 80, objectFit: 'contain' }} />
+                                            </Box>
+                                        )}
+                                        <Typography variant="h6" fontWeight="bold">{settings.CompanyName}</Typography>
+                                        <Typography variant="body2">{settings.Address}</Typography>
+                                        <Typography variant="body2">{settings.Phone}</Typography>
+                                        {settings.RegistrationNumber && <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>{t('settings_registration_number', 'Reg No.')}: {settings.RegistrationNumber}</Typography>}
+                                    </Box>
+                                </Box>
+
+                                <Box sx={{ mb: 6, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                                    <Typography variant="h4" align="center" fontWeight="bold">
+                                        {t('invoices_total_amount', 'Total Amount')}: ¥{(viewInvoice as any)?.TotalAmount.toLocaleString()}
+                                    </Typography>
+                                </Box>
+
+                                <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ mb: 4 }}>
+                                    <Table size="medium">
+                                        <TableHead sx={{ bgcolor: 'primary.main' }}>
+                                            <TableRow>
+                                                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t('products_name', 'Item')}</TableCell>
+                                                <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_unit_price', 'Price')}</TableCell>
+                                                <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_quantity', 'Qty')}</TableCell>
+                                                <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_total', 'Total')}</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {(viewInvoice as any)?.Items.map((item: any, i: number) => (
+                                                <TableRow key={i}>
+                                                    <TableCell>{item.ProductName || item.Project || '-'}</TableCell>
+                                                    <TableCell align="right">¥{item.UnitPrice.toLocaleString()}</TableCell>
+                                                    <TableCell align="right">{item.Quantity}</TableCell>
+                                                    <TableCell align="right">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+
+                                <Box sx={{ mt: 8, p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 2 }}>
+                                    <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, borderBottom: 1, pb: 0.5, borderColor: 'grey.300' }}>{t('settings_bank_info', 'Bank Account Info')}</Typography>
+                                    <Grid container spacing={2}>
+                                        <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_bank_name', 'Bank')}</Typography></Grid>
+                                        <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.BankName} {settings.BranchName}</Typography></Grid>
+                                        <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_number', 'Account')}</Typography></Grid>
+                                        <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountType} {settings.AccountNumber}</Typography></Grid>
+                                        <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_holder', 'Holder')}</Typography></Grid>
+                                        <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountHolder}</Typography></Grid>
+                                    </Grid>
+                                </Box>
+                            </Box>
+                        </Dialog>
+                    )
+                }
+
+
+
+                {/* Unit Manager Dialog */}
                 <Dialog open={isUnitManagerOpen} onClose={() => setIsUnitManagerOpen(false)} maxWidth="xs" fullWidth>
                     <Box sx={{ p: 2 }}>
                         <Typography variant="h6" gutterBottom>{t('unit_manage', 'Manage Units')}</Typography>
@@ -1181,375 +1563,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
                 <LoadingOverlay open={loading} />
             </Box >
-        );
-    }
-
-    // List View
-    return (
-        <Box sx={{ p: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                        {t('invoices', 'Invoices')}
-                    </Typography>
-                    {selectedInvoiceIds.size > 0 && (
-                        <Button
-                            variant="outlined"
-                            startIcon={<PrintIcon />}
-                            onClick={handleMergeAndPrint}
-                        >
-                            {t('invoices_merge_print', 'Merge & Print')} ({selectedInvoiceIds.size})
-                        </Button>
-                    )}
-                    {selectedInvoiceIds.size > 0 && (
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            startIcon={<DeleteIcon />}
-                            onClick={() => {
-                                setConfirmDialog({
-                                    open: true,
-                                    title: t('common.delete', 'Delete'),
-                                    message: t('common.confirm_delete', 'Are you sure?'),
-                                    onConfirm: handleBulkDelete
-                                });
-                            }}
-                        >
-                            {t('common.delete')} ({selectedInvoiceIds.size})
-                        </Button>
-                    )}
-                    <TextField
-                        select
-                        label={t('invoices_status', 'Status')}
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as any)}
-                        variant="outlined"
-                        size="small"
-                        sx={{ width: 120, bgcolor: 'background.paper' }}
-                    >
-                        <MenuItem value="All">{t('common.all', 'All')}</MenuItem>
-                        <MenuItem value="Unpaid">{t('status_unpaid', 'Unpaid')}</MenuItem>
-                        <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
-                    </TextField>
-                    <TextField
-                        type="month"
-                        variant="outlined"
-                        size="small"
-                        value={monthFilter}
-                        onChange={e => setMonthFilter(e.target.value)}
-                        sx={{ bgcolor: 'background.paper' }}
-                    />
-                </Box>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<AddIcon />}
-                    onClick={handleCreateNew}
-                >
-                    {t('invoices_new_invoice_btn', 'New Invoice')}
-                </Button>
-            </Box>
-
-            <TableContainer component={Paper} elevation={1}>
-                <Table sx={{ minWidth: 650 }} aria-label="invoice table">
-                    <TableHead sx={{ bgcolor: 'grey.50' }}>
-                        <TableRow>
-                            <TableCell padding="checkbox">
-                                <Checkbox
-                                    indeterminate={selectedInvoiceIds.size > 0 && selectedInvoiceIds.size < sortedInvoices.length}
-                                    checked={sortedInvoices.length > 0 && selectedInvoiceIds.size === sortedInvoices.length}
-                                    onChange={(e) => {
-                                        if (e.target.checked) {
-                                            setSelectedInvoiceIds(new Set(sortedInvoices.map(i => i.ID)));
-                                        } else {
-                                            setSelectedInvoiceIds(new Set());
-                                        }
-                                    }}
-                                />
-                            </TableCell>
-                            <TableCell onClick={() => handleSort('InvoiceDate')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                {t('invoices_col_date', 'Date')} {sortConfig.key === 'InvoiceDate' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                            </TableCell>
-                            <TableCell onClick={() => handleSort('ID')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                {t('invoices_col_id', 'ID')} {sortConfig.key === 'ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                            </TableCell>
-                            {!filterClientId && (
-                                <TableCell onClick={() => handleSort('ClientName')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                    {t('invoices_col_client', 'Client')} {sortConfig.key === 'ClientName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                </TableCell>
-                            )}
-                            <TableCell align="right" onClick={() => handleSort('TotalAmount')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                {t('invoices_col_amount', 'Amount')} {sortConfig.key === 'TotalAmount' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>{t('invoices_status', 'Status')}</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('invoices_col_actions', 'Actions')}</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {sortedInvoices.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                    {t('invoices_no_invoices', 'No invoices found.')}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            sortedInvoices
-                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                                .map((invoice) => (
-                                    <TableRow
-                                        key={invoice.ID}
-                                        hover
-                                        onClick={() => setViewInvoice(invoice)}
-                                        sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
-                                        selected={selectedInvoiceIds.has(invoice.ID)}
-                                    >
-                                        <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                                            <Checkbox
-                                                checked={selectedInvoiceIds.has(invoice.ID)}
-                                                onChange={(e: any) => {
-                                                    const newSet = new Set(selectedInvoiceIds);
-                                                    if (e.target.checked) newSet.add(invoice.ID);
-                                                    else newSet.delete(invoice.ID);
-                                                    setSelectedInvoiceIds(newSet);
-                                                }}
-                                            />
-                                        </TableCell>
-                                        <TableCell component="th" scope="row" sx={{ fontFamily: 'monospace' }}>
-                                            {new Date(invoice.InvoiceDate).toLocaleDateString()}
-                                        </TableCell>
-                                        <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-                                            #{String(invoice.ID).padStart(8, '0')}
-                                        </TableCell>
-                                        {!filterClientId && (
-                                            <TableCell sx={{ fontWeight: 500 }}>
-                                                {((invoice.Items && invoice.Items.length > 0 && invoice.Items[0].Project) || clients.find(c => c.ID === invoice.ClientID)?.Name || 'Unknown')}
-                                            </TableCell>
-                                        )}
-                                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                            ¥{invoice.TotalAmount.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>
-
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <Typography variant="caption" sx={{ mr: 1, color: invoice.Status === 'Sent' ? 'text.secondary' : 'error.main', fontWeight: 'bold' }}>
-                                                    {invoice.Status === 'Sent' ? t('status_sent', 'Sent') : t('status_unpaid', 'Unsent')}
-                                                </Typography>
-                                                <Switch
-                                                    size="small"
-                                                    checked={invoice.Status === 'Sent'}
-                                                    onChange={async (e: any) => {
-                                                        const newStatus = e.target.checked ? 'Sent' : 'Unpaid';
-
-                                                        // Optimistic update
-                                                        setInvoices(prev => prev.map(inv => inv.ID === invoice.ID ? { ...inv, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' } : inv));
-
-                                                        try {
-                                                            const updated = { ...invoice, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' };
-                                                            await invoiceService.update(updated);
-                                                            // No re-fetch to prevent jump
-                                                        } catch (err) {
-                                                            // Revert on error
-                                                            setInvoices(prev => prev.map(inv => inv.ID === invoice.ID ? invoice : inv));
-                                                            console.error("Status update failed", err);
-                                                        }
-                                                    }}
-                                                    color="primary"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                />
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            <Button
-                                                size="small"
-                                                startIcon={<VisibilityIcon />}
-                                                onClick={(e) => { e.stopPropagation(); setViewInvoice(invoice); }}
-                                                sx={{ mr: 1 }}
-                                            >
-                                                {t('common.view', 'View')}
-                                            </Button>
-                                            <IconButton
-                                                size="small"
-                                                color="error"
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(invoice.ID); }}
-                                            >
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                )))}
-
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <TablePagination
-                rowsPerPageOptions={[10, 25, 50]}
-                component="div"
-                count={sortedInvoices.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                labelRowsPerPage={t('rows_per_page')}
-                labelDisplayedRows={({ from, to, count }) => t('page_info', { from, to, count })}
-            />
-
-            {/* Invoice Preview Modal */}
-            {viewInvoice && (
-                <Dialog
-                    fullScreen
-                    open={true}
-                    onClose={() => setViewInvoice(null)}
-                    PaperProps={{ sx: { bgcolor: 'background.default' } }}
-                >
-                    <Box sx={{ p: 2, bgcolor: 'white', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="print:hidden">
-                        <Typography variant="h6">{t('invoices_preview_title', 'Invoice Preview')}</Typography>
-                        <Box>
-                            <Button onClick={() => window.print()} startIcon={<PrintIcon />} sx={{ mr: 1 }} variant="contained" color="primary">
-                                {t('invoices_btn_print', 'Print')}
-                            </Button>
-                            <Button onClick={() => setViewInvoice(null)} variant="outlined" color="secondary">
-                                {t('invoices_btn_close', 'Close')}
-                            </Button>
-                        </Box>
-                    </Box>
-
-                    <Box sx={{ p: 8, maxWidth: '210mm', mx: 'auto', bgcolor: 'white', minHeight: '297mm', my: 2, boxShadow: 3 }} className="print:shadow-none print:m-0 print:w-full print:p-0">
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 6 }}>
-                            <Typography variant="h3" fontWeight="bold" color="primary" sx={{ letterSpacing: 2 }}>{t('invoices_title', 'INVOICE')}</Typography>
-                            <Box sx={{ textAlign: 'right' }}>
-                                <Typography variant="body1"><strong>{t('invoices_date', 'Date')}:</strong> {viewInvoice ? new Date((viewInvoice as any).InvoiceDate).toLocaleDateString() : ''}</Typography>
-                                <Typography variant="body1"><strong>ID:</strong> #{viewInvoice ? String((viewInvoice as any).ID).padStart(8, '0') : ''}</Typography>
-                                {/* Always render, check validity */}
-                                {(viewInvoice as any)?.DueDate ? (
-                                    <Typography variant="body1" color="error"><strong>{t('invoices_due_date', 'Due Date')}:</strong> {new Date((viewInvoice as any).DueDate).toLocaleDateString()}</Typography>
-                                ) : null}
-                            </Box>
-                        </Box>
-
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 8, alignItems: 'flex-start' }}>
-                            <Box sx={{ width: '50%' }}>
-                                {viewInvoice && (
-                                    <Typography variant="h5" fontWeight="bold" sx={{ borderBottom: 2, borderColor: 'divider', pb: 1, mb: 2, display: 'inline-block' }}>
-                                        {clients.find(c => c.ID === (viewInvoice as any).ClientID)?.Name} <span style={{ fontSize: '0.6em', fontWeight: 'normal' }}>{t('common_honorific', '御中')}</span>
-                                    </Typography>
-                                )}
-                                <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{clients.find(c => c.ID === (viewInvoice as any)?.ClientID)?.Address}</Typography>
-                            </Box>
-
-                            <Box sx={{ width: '40%', textAlign: 'right' }}>
-                                {settings.Logo && (
-                                    <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                                        <img src={settings.Logo} alt="Logo" style={{ height: 80, objectFit: 'contain' }} />
-                                    </Box>
-                                )}
-                                <Typography variant="h6" fontWeight="bold">{settings.CompanyName}</Typography>
-                                <Typography variant="body2">{settings.Address}</Typography>
-                                <Typography variant="body2">{settings.Phone}</Typography>
-                                {settings.RegistrationNumber && <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>{t('settings_registration_number', 'Reg No.')}: {settings.RegistrationNumber}</Typography>}
-                            </Box>
-                        </Box>
-
-                        <Box sx={{ mb: 6, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                            <Typography variant="h4" align="center" fontWeight="bold">
-                                {t('invoices_total_amount', 'Total Amount')}: ¥{(viewInvoice as any)?.TotalAmount.toLocaleString()}
-                            </Typography>
-                        </Box>
-
-                        <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ mb: 4 }}>
-                            <Table size="medium">
-                                <TableHead sx={{ bgcolor: 'primary.main' }}>
-                                    <TableRow>
-                                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t('products_name', 'Item')}</TableCell>
-                                        <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_unit_price', 'Price')}</TableCell>
-                                        <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_quantity', 'Qty')}</TableCell>
-                                        <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_total', 'Total')}</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {(viewInvoice as any)?.Items.map((item: any, i: number) => (
-                                        <TableRow key={i}>
-                                            <TableCell>{item.ProductName || item.Project || '-'}</TableCell>
-                                            <TableCell align="right">¥{item.UnitPrice.toLocaleString()}</TableCell>
-                                            <TableCell align="right">{item.Quantity}</TableCell>
-                                            <TableCell align="right">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-
-                        <Box sx={{ mt: 8, p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 2 }}>
-                            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, borderBottom: 1, pb: 0.5, borderColor: 'grey.300' }}>{t('settings_bank_info', 'Bank Account Info')}</Typography>
-                            <Grid container spacing={2}>
-                                <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_bank_name', 'Bank')}</Typography></Grid>
-                                <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.BankName} {settings.BranchName}</Typography></Grid>
-                                <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_number', 'Account')}</Typography></Grid>
-                                <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountType} {settings.AccountNumber}</Typography></Grid>
-                                <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_holder', 'Holder')}</Typography></Grid>
-                                <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountHolder}</Typography></Grid>
-                            </Grid>
-                        </Box>
-                    </Box>
-                </Dialog>
-            )}
-
-
-
-            {/* Unit Manager Dialog */}
-            <Dialog open={isUnitManagerOpen} onClose={() => setIsUnitManagerOpen(false)} maxWidth="xs" fullWidth>
-                <Box sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>{t('unit_manage', 'Manage Units')}</Typography>
-                    <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
-                        {units.length === 0 ? <Typography variant="body2" color="text.secondary">No saved units.</Typography> : (
-                            units.map(u => (
-                                <Box key={u.ID} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: '1px solid #eee' }}>
-                                    <Typography>{u.Name}</Typography>
-                                    <IconButton size="small" color="error" onClick={() => {
-                                        setConfirmDialog({
-                                            open: true,
-                                            title: t('common.delete', 'Delete Unit'),
-                                            message: `Delete unit "${u.Name}"?`,
-                                            onConfirm: async () => {
-                                                await unitService.delete(u.ID);
-                                                const updated = await unitService.getAll();
-                                                setUnits(updated);
-                                                setConfirmDialog(p => ({ ...p, open: false }));
-                                            }
-                                        });
-                                    }}>
-                                        <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                </Box>
-                            ))
-                        )}
-                    </Box>
-                    <Box sx={{ mt: 2, textAlign: 'right' }}>
-                        <Button onClick={() => setIsUnitManagerOpen(false)}>{t('common.close', 'Close')}</Button>
-                    </Box>
-                </Box>
-            </Dialog>
-
-            <ConfirmDialog
-                open={confirmDialog.open}
-                title={confirmDialog.title}
-                message={confirmDialog.message}
-                onConfirm={confirmDialog.onConfirm}
-                onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
-            />
-
-            <Snackbar
-                open={toast.open}
-                autoHideDuration={3000}
-                onClose={handleCloseToast}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            >
-                <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%' }}>
-                    {toast.message}
-                </Alert>
-            </Snackbar>
-
-            <LoadingOverlay open={loading} />
-        </Box>
+        </PageTransition >
     );
 };
 

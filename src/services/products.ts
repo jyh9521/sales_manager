@@ -24,7 +24,7 @@ export const productService = {
             ClientIDs: r.ClientIDs ? r.ClientIDs.split(',').map((id: string) => Number(id)) : [],
             TaxRate: r.TaxRate || 10,
             Stock: r.Stock || 0,
-            IsActive: Number(r.IsActive) !== 0 // Fix: Handle boolean false getting treated as true by !== 0 check
+            IsActive: Number(r.IsActive) !== 0 // 修复：修复布尔值 false 被 !== 0 检查视为 true 的问题
         }));
     },
 
@@ -70,7 +70,7 @@ export const productService = {
         const rows = await query<{ Code: string }[]>(`SELECT Code FROM Products WHERE Project='${cleanProject}'`);
 
         let maxNum = 0;
-        // Simple separator detection: Check for Project + '-'
+        // 简单分隔符检测：检查 Project + '-'
         const prefix = project + '-';
 
         rows.forEach(r => {

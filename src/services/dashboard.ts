@@ -8,9 +8,9 @@ export interface DashboardStats {
 
     topClients: { name: string; value: number }[];
     productDistribution: { name: string; value: number }[];
-    monthlyTrend: { name: string; sales: number }[]; // For charts (last 6-12 months)
+    monthlyTrend: { name: string; sales: number }[]; // 用于图表 (最近 6-12 个月)
 
-    pendingInvoicesPoints: number; // Count of invoices
+    pendingInvoicesPoints: number; // 发票数量
 }
 
 export const dashboardService = {
@@ -20,7 +20,7 @@ export const dashboardService = {
         const now = new Date();
         const currentYear = now.getFullYear();
 
-        // 1. Calculate Monthly Sales & Trends
+        // 1. 计算月度销售额及趋势
         const getMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         const currentMonthKey = getMonthKey(now);
 
@@ -34,37 +34,37 @@ export const dashboardService = {
         let lastMonthSales = 0;
         let lastYearSales = 0;
 
-        // Simplify grouping for charts
+        // 简化图表分组
         const monthlySalesMap = new Map<string, number>();
 
-        // 2. Client (Project) Aggregation
+        // 2. 客户 (项目) 聚合
         const clientSalesMap = new Map<string, number>();
 
-        // 3. Product Aggregation
+        // 3. 产品聚合
         const productSalesMap = new Map<string, number>();
 
         invoices.forEach(inv => {
             const date = new Date(inv.InvoiceDate);
             const key = getMonthKey(date);
 
-            // Monthly Sales Grouping (for chart)
+            // 月度销售分组 (用于图表)
             const amount = inv.TotalAmount;
             monthlySalesMap.set(key, (monthlySalesMap.get(key) || 0) + amount);
 
-            // KPIS
+            // 关键绩效指标 (KPIs)
             if (key === currentMonthKey) currentMonthSales += amount;
             if (key === lastMonthKey) lastMonthSales += amount;
             if (key === lastYearKey) lastYearSales += amount;
 
-            // Granular Analysis (Items)
+            // 细粒度分析 (项目)
             const items = inv.Items || [];
             items.forEach(item => {
                 const itemTotal = item.Quantity * item.UnitPrice;
 
-                // Top Clients (by Project)
-                // Filter: Only count items from this year? Or all time? 
-                // Usually dashboard shows current year or recent performance. 
-                // Let's filter for Current Year to make it relevant.
+                // 顶级客户 (按项目)
+                // 筛选：仅计算今年的项目？还是所有时间？
+                // 通常仪表盘显示当年或近期的表现。
+                // 让我们筛选当年数据以使其更相关。
                 if (date.getFullYear() === currentYear) {
                     const project = item.Project || inv.ClientName || 'Unknown';
                     clientSalesMap.set(project, (clientSalesMap.get(project) || 0) + itemTotal);
@@ -75,7 +75,7 @@ export const dashboardService = {
             });
         });
 
-        // Growth Rates
+        // 增长率
         const calculateGrowth = (current: number, previous: number) => {
             if (previous === 0) return current > 0 ? 100 : 0;
             return ((current - previous) / previous) * 100;
@@ -84,13 +84,13 @@ export const dashboardService = {
         const salesGrowthMoM = calculateGrowth(currentMonthSales, lastMonthSales);
         const salesGrowthYoY = calculateGrowth(currentMonthSales, lastYearSales);
 
-        // Top Clients (Project) - Top 5
+        // 顶级客户 (项目) - 前 5 名
         const topClients = Array.from(clientSalesMap.entries())
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value)
             .slice(0, 5);
 
-        // Product Distribution - Top 5 + Others
+        // 产品分布 - 前 5 名 + 其他
         const sortedProducts = Array.from(productSalesMap.entries())
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
@@ -102,7 +102,7 @@ export const dashboardService = {
             productDistribution = [...top, { name: 'Others', value: others }];
         }
 
-        // Monthly Trend (Last 6 months)
+        // 月度趋势 (最近 6 个月)
         const monthlyTrend = [];
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -114,13 +114,13 @@ export const dashboardService = {
         }
 
         return {
-            totalSales: currentMonthSales, // Main big number is THIS MONTH
+            totalSales: currentMonthSales, // 主要大数字是本月
             salesGrowthMoM,
             salesGrowthYoY,
             topClients,
             productDistribution,
             monthlyTrend,
-            pendingInvoicesPoints: invoices.length // Just total count for now
+            pendingInvoicesPoints: invoices.length // 目前仅为总计数
         };
     }
 };

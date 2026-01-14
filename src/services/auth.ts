@@ -8,7 +8,7 @@ export interface User {
 
 export const authService = {
     async login(username: string, password: string): Promise<User | null> {
-        // Basic sanitization
+        // 基本清理
         const safeUser = username.replace(/'/g, "''");
 
         const sql = `SELECT * FROM Users WHERE Username = '${safeUser}'`;
@@ -16,7 +16,7 @@ export const authService = {
 
         if (users && users.length > 0) {
             const user = users[0];
-            // In a real app, verify hash. checking plain string for now as seeded.
+            // 在真实应用中，验证哈希。目前检查纯字符串，因为是种子数据。
             if (user.PasswordHash === password) {
                 return {
                     ID: user.ID,

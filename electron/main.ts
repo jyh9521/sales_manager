@@ -7,7 +7,7 @@ import path from 'node:path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// The built directory structure
+// 构建目录结构
 //
 // ├─┬─┬ dist
 // │ │ └── index.html
@@ -18,7 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // │
 process.env.APP_ROOT = path.join(__dirname, '..')
 
-// 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
+// 🚧 使用 ['ENV_NAME'] 避免 vite:define 插件问题 - Vite@2.x
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
@@ -37,7 +37,7 @@ function createWindow() {
   win.setMenuBarVisibility(false)
   win.setMenu(null)
 
-  // Test active push message to Renderer-process.
+  // 测试向渲染进程主动推送消息。
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
@@ -50,9 +50,8 @@ function createWindow() {
   }
 }
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// 当所有窗口关闭时退出应用，除了 macOS。在这里，应用程序及其菜单栏通常会保持活动状态，
+// 直到用户使用 Cmd + Q 显式退出。
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
     await tryAutoBackup();
@@ -61,51 +60,11 @@ app.on('window-all-closed', async () => {
   }
 })
 
-async function tryAutoBackup_OLD() {
-  try {
-    // 1. Check Settings
-    const settingsRows = await connection.query("SELECT SettingValue FROM Settings WHERE SettingKey='MainConfig'") as any[];
-    if (!settingsRows || settingsRows.length === 0 || !settingsRows[0].SettingValue) return;
 
-    const config = JSON.parse(settingsRows[0].SettingValue);
-    if (!config.AutoBackup) return;
-
-    console.log('Auto Backup initiated...');
-
-    // 2. Prepare paths
-    const fs = await import('fs');
-    const isPackaged = app.isPackaged;
-    const dbPath = isPackaged
-      ? path.join(app.getPath('userData'), 'sales.accdb')
-      : path.join(process.cwd(), 'sales.accdb');
-
-    // Backup folder in userData/backups
-    const backupDir = path.join(app.getPath('userData'), 'backups');
-    if (!fs.existsSync(backupDir)) {
-      await fs.promises.mkdir(backupDir, { recursive: true });
-    }
-
-    // 3. Create Backup Filename
-    const date = new Date();
-    // YYYYMMDD-HHmmss
-    const timestamp = date.toISOString().replace(/[-:T]/g, '').split('.')[0];
-    const backupPath = path.join(backupDir, `auto-backup-${timestamp}.bak`);
-
-    // 4. Copy
-    await fs.promises.copyFile(dbPath, backupPath);
-    console.log(`Auto Backup successful: ${backupPath}`);
-
-    // 5. Cleanup (Optional: Keep last 5)
-    // const files = await fs.promises.readdir(backupDir);
-    // ... logic to delete old backups ...
-  } catch (e) {
-    console.error('Auto Backup failed:', e);
-  }
-}
 
 app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
+  // 在 OS X 上，常见的做法是当点击 dock 图标且没有打开的窗口时，
+  // 在应用中重新创建一个窗口。
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
@@ -120,7 +79,7 @@ app.whenReady().then(async () => {
   }
   createWindow();
 
-  // Database IPC Handlers
+  // 数据库 IPC 处理程序
   ipcMain.handle('db-query', async (_event, sql) => {
     console.log('SQL Query:', sql);
     try {
@@ -143,7 +102,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  // --- Units ---
+  // --- 单位 ---
   ipcMain.handle('units-getAll', async () => {
     try {
       return await connection.query('SELECT * FROM Units ORDER BY Name ASC');
@@ -181,11 +140,11 @@ app.whenReady().then(async () => {
     }
   });
 
-  // --- Invoices ---
+  // --- 发票 ---
   ipcMain.handle('invoices-getAll', async () => {
     // ... (existing)
-    // Ensure we fetch items too? Usually fetch list first.
-    // Simplified query for list
+    // 确保也获取项目？通常先获取列表。
+    // 列表的简化查询
     const sql = `
             SELECT Invoices.*, Clients.Name as ClientName
             FROM Invoices
@@ -207,20 +166,21 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('save-invoice', async (_event, invoice: any) => {
+    let invoiceID = invoice.ID;
     try {
-      let invoiceID = invoice.ID;
 
-      // Format Date for Access (YYYY-MM-DD)
+
+      // 格式化日期以供 Access 使用 (YYYY-MM-DD)
       const invoiceDate = new Date(invoice.InvoiceDate).toISOString().split('T')[0];
       const dueDate = invoice.DueDate ? new Date(invoice.DueDate).toISOString().split('T')[0] : null;
 
-      // --- INVENTORY MANAGEMENT: RESTORE STOCK IF UPDATING ---
+      // --- 库存管理：如果更新则恢复库存 ---
       if (invoiceID) {
-        // Fetch old items to restore their stock
+        // 获取旧项目以恢复其库存
         const oldItems = await connection.query(`SELECT ProductID, Quantity FROM InvoiceItems WHERE InvoiceID = ${invoiceID}`) as any[];
         if (oldItems && oldItems.length > 0) {
           for (const item of oldItems) {
-            // Restore stock
+            // 恢复库存
             await connection.execute(`UPDATE Products SET Stock = Stock + ${item.Quantity} WHERE ID = ${item.ProductID}`);
           }
         }
@@ -229,7 +189,7 @@ app.whenReady().then(async () => {
       const itemsJson = JSON.stringify(invoice.Items).replace(/'/g, "''");
 
       if (invoiceID) {
-        // Update
+        // 更新
         await connection.execute(`
                     UPDATE Invoices 
                     SET ClientID=${invoice.ClientID}, 
@@ -241,10 +201,10 @@ app.whenReady().then(async () => {
                         ExampleField='${invoice.ExampleField || ''}'
                     WHERE ID=${invoiceID}
                 `);
-        // Delete old items
+        // 删除旧项目
         await connection.execute(`DELETE FROM InvoiceItems WHERE InvoiceID = ${invoiceID}`);
       } else {
-        // Insert
+        // 插入
         // Insert
         try {
           await connection.execute(`
@@ -253,9 +213,9 @@ app.whenReady().then(async () => {
                     `);
         } catch (insertError) {
           console.error("Insert failed, checking verification...", insertError);
-          // Verify if it actually succeeded (Access false positive spawn error)
-          // Check for record created in last 5 seconds with same ClientID and Amount
-          // Since we don't have millisecond precision easily reliably, we check latest ID.
+          // 验证是否实际成功 (Access 误报生成错误)
+          // 检查过去 5 秒内创建的记录...
+          // 由于没有毫秒级精度...
           await new Promise(r => setTimeout(r, 500)); // Wait a bit for Access to flush
           const verify = await connection.query(`
                 SELECT TOP 1 ID FROM Invoices 
@@ -265,18 +225,18 @@ app.whenReady().then(async () => {
             `) as any[];
 
           if (verify && verify.length > 0) {
-            // Assume this is the one we just made
+            // 假设这是我们要创建的
             console.log("Verification checks out. Error was false positive.");
           } else {
-            throw insertError; // RETHROW if not found
+            throw insertError; // 如果未找到则重新抛出
           }
         }
 
-        // Get last ID
+        // 获取最后一个 ID
         const res = await connection.query('SELECT @@IDENTITY AS id') as any[];
-        // Double check if ID is valid
+        // 二次检查 ID 是否有效
         if (!res || !res[0] || !res[0].id) {
-          // Fallback: fetch by signature
+          // 回退：按签名获取
           const fallback = await connection.query(`SELECT TOP 1 ID FROM Invoices WHERE ClientID=${invoice.ClientID} ORDER BY ID DESC`) as any[];
           if (!fallback || !fallback.length) throw new Error("Failed to retrieve ID after insert.");
           invoiceID = fallback[0].ID;
@@ -285,12 +245,12 @@ app.whenReady().then(async () => {
         }
       }
 
-      // Insert Items & DEDUCT STOCK
+      // 插入项目并扣除库存
       if (invoice.Items && invoice.Items.length > 0) {
         try {
           for (const item of invoice.Items) {
             const itemDate = item.ItemDate ? `'${new Date(item.ItemDate).toISOString().split('T')[0]}'` : 'NULL';
-            const remarks = item.Remarks ? `'${item.Remarks.replace(/'/g, "''")}'` : 'NULL'; // Escape quotes
+            const remarks = item.Remarks ? `'${item.Remarks.replace(/'/g, "''")}'` : 'NULL'; // 转义引号
             const unit = item.Unit ? `'${item.Unit.replace(/'/g, "''")}'` : 'NULL';
             const project = item.Project ? `'${item.Project.replace(/'/g, "''")}'` : 'NULL';
             const taxRate = item.TaxRate || 10;
@@ -300,19 +260,19 @@ app.whenReady().then(async () => {
                            VALUES (${invoiceID}, ${item.ProductID}, ${item.Quantity}, ${item.UnitPrice}, ${unit}, ${itemDate}, ${remarks}, ${project}, ${taxRate})
                        `);
 
-            // Deduct Stock (Best effort - catch error per item or just let outer catch handle it)
+            // 扣除库存 (尽力而为 - 捕获每个项目的错误或让外部捕获处理)
             try {
               await connection.execute(`UPDATE Products SET Stock = Stock - ${item.Quantity} WHERE ID = ${item.ProductID}`);
             } catch (stockErr) {
               console.warn("Stock update warning:", stockErr);
             }
 
-            // Throttle to prevent spawn exhaustion
+            // 节流以防止 spawn 耗尽
             await new Promise(r => setTimeout(r, 100));
           }
         } catch (itemErr) {
           console.error("Item insertion incomplete:", itemErr);
-          // If we have an ID, return it anyway so the UI doesn't freeze/show error, assuming DB might have worked or user can fallback
+          // 如果我们有 ID，无论如何都要返回它，这样 UI 就不会冻结/显示错误，假设 DB 可能已经工作或者用户可以回退
           return { success: true, id: invoiceID, warning: "Partial save completed" };
         }
       }
@@ -320,9 +280,9 @@ app.whenReady().then(async () => {
       return { success: true, id: invoiceID };
     } catch (e: any) {
       console.error('Save Invoice Error:', e);
-      // CRITICAL FIX: If invoiceID was generated, the main record exists.
-      // The error is likely a spurious "Spawn" error from items/stock updates.
-      // We return success to prevent the UI from showing a failure message when it actually worked.
+      // 关键修复：如果生成了 invoiceID，则主记录存在。
+      // 该错误可能是来自项目/库存更新的虚假 "Spawn" 错误。
+      // 我们返回成功以防止 UI 显示失败消息，而实际上它已工作。
       if (invoiceID) {
         console.warn('Suppressing error because Invoice ID exists:', invoiceID);
         return { success: true, id: invoiceID, warning: e.message || String(e) };
@@ -333,14 +293,14 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('delete-invoice', async (_event, id) => {
     try {
-      // 1. Restore Stock
+      // 1. 恢复库存
       const oldItems = await connection.query(`SELECT ProductID, Quantity FROM InvoiceItems WHERE InvoiceID = ${id}`) as any[];
       if (oldItems && oldItems.length > 0) {
         for (const item of oldItems) {
           await connection.execute(`UPDATE Products SET Stock = Stock + ${item.Quantity} WHERE ID = ${item.ProductID}`);
         }
       }
-      // 2. Delete Invoice (Cascade deletes items)
+      // 2. 删除发票 (级联删除项目)
       await connection.execute(`DELETE FROM Invoices WHERE ID = ${id}`);
       return { success: true };
     } catch (e) {
@@ -349,7 +309,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  // --- Estimates ---
+  // --- 报价单 ---
   ipcMain.handle('estimates-getAll', async () => {
     const sql = `
             SELECT Estimates.*, Clients.Name as ClientName
@@ -451,10 +411,10 @@ app.whenReady().then(async () => {
         : path.join(process.cwd(), 'sales.accdb');
 
       const fs = await import('fs');
-      // Create safety backup
+      // 创建安全备份
       await fs.promises.copyFile(dbPath, dbPath + '.pre-restore.bak').catch(() => { });
 
-      // Restore
+      // 还原
       await fs.promises.copyFile(filePaths[0], dbPath);
       return { success: true };
     } catch (e: any) {
@@ -477,7 +437,7 @@ app.whenReady().then(async () => {
 
 async function tryAutoBackup() {
   try {
-    // 1. Check Settings
+    // 1. 检查设置
     const settingsRows = await connection.query("SELECT SettingValue FROM Settings WHERE SettingKey='MainConfig'") as any[];
     if (!settingsRows || settingsRows.length === 0 || !settingsRows[0].SettingValue) return;
 
@@ -486,14 +446,14 @@ async function tryAutoBackup() {
 
     console.log('Auto Backup initiated...');
 
-    // 2. Prepare paths
+    // 2. 准备路径
     const fs = await import('fs');
     const isPackaged = app.isPackaged;
     const dbPath = isPackaged
       ? path.join(app.getPath('userData'), 'sales.accdb')
       : path.join(process.cwd(), 'sales.accdb');
 
-    // Backup folder
+    // 备份文件夹
     let backupDir = config.BackupPath;
     if (!backupDir) {
       backupDir = path.join(app.getPath('userData'), 'backups');
@@ -503,7 +463,7 @@ async function tryAutoBackup() {
       await fs.promises.mkdir(backupDir, { recursive: true });
     }
 
-    // 3. Create Backup Filename
+    // 3. 创建备份文件名
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -514,7 +474,7 @@ async function tryAutoBackup() {
 
     const backupPath = path.join(backupDir, `auto-backup-${timestamp}.bak`);
 
-    // 4. Copy
+    // 4. 复制文件
     await fs.promises.copyFile(dbPath, backupPath);
     console.log(`Auto Backup successful: ${backupPath}`);
   } catch (e) {
