@@ -1,0 +1,9 @@
+{
+    "welcome": "欢迎！销售管理系统",
+    "login": "登录",
+    "dashboard": "仪表盘",
+    "clients": "客户管理",
+    "products": "商品管理",
+    "invoices": "请求书作成",
+    "settings": "设置"
+}

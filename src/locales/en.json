@@ -1,0 +1,9 @@
+{
+    "welcome": "Welcome! Sales Management System",
+    "login": "Login",
+    "dashboard": "Dashboard",
+    "clients": "Client Management",
+    "products": "Product Management",
+    "invoices": "Create Invoice",
+    "settings": "Settings"
+}

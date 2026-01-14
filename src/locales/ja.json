@@ -1,0 +1,9 @@
+{
+  "welcome": "ようこそ！販売管理システムへ",
+  "login": "ログイン",
+  "dashboard": "ダッシュボード",
+  "clients": "得意先管理",
+  "products": "商品管理",
+  "invoices": "請求書作成",
+  "settings": "設定"
+}
