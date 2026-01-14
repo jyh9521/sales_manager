@@ -102,10 +102,24 @@ async function createSchema() {
         ClientID LONG,
         InvoiceDate DATETIME,
         TotalAmount CURRENCY,
-        Items MEMO
+        Status VARCHAR(50) DEFAULT 'Unpaid',
+        DueDate DATETIME,
+        ExampleField MEMO
       )
     `).catch(() => {
     });
+    try {
+      await connection.execute(`ALTER TABLE Invoices ADD COLUMN Status VARCHAR(50) DEFAULT 'Unpaid'`);
+    } catch (e) {
+    }
+    try {
+      await connection.execute(`ALTER TABLE Invoices ADD COLUMN DueDate DATETIME`);
+    } catch (e) {
+    }
+    try {
+      await connection.execute(`ALTER TABLE Invoices ADD COLUMN ExampleField MEMO`);
+    } catch (e) {
+    }
     try {
       await connection.execute(`ALTER TABLE Products ADD COLUMN Project VARCHAR(255)`);
     } catch (e) {
@@ -268,14 +282,15 @@ app.whenReady().then(async () => {
                         InvoiceDate='${invoiceDate}', 
                         DueDate=${dueDate ? `'${dueDate}'` : "NULL"}, 
                         TotalAmount=${invoice.TotalAmount},
+                        Status='${invoice.Status || "Unpaid"}',
                         ExampleField='${invoice.ExampleField || ""}'
                     WHERE ID=${invoiceID}
                 `);
         await connection.execute(`DELETE FROM InvoiceItems WHERE InvoiceID = ${invoiceID}`);
       } else {
         await connection.query(`
-                    INSERT INTO Invoices (ClientID, InvoiceDate, DueDate, TotalAmount, ExampleField)
-                    VALUES (${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : "NULL"}, ${invoice.TotalAmount}, '${invoice.ExampleField || ""}')
+                    INSERT INTO Invoices (ClientID, InvoiceDate, DueDate, TotalAmount, Status, ExampleField)
+                    VALUES (${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : "NULL"}, ${invoice.TotalAmount}, '${invoice.Status || "Unpaid"}', '${invoice.ExampleField || ""}')
                 `);
         const res = await connection.query("SELECT @@IDENTITY AS id");
         invoiceID = res[0].id;

@@ -38,9 +38,13 @@ const Settings = () => {
         try {
             await settingsService.save(settings);
             setStatus(t('settings_save_success', 'Settings saved successfully!'));
-            setTimeout(() => setStatus(''), 3000);
+            setStatus(t('settings_save_success', 'Settings saved successfully! Reloading...'));
+            setTimeout(() => {
+                setStatus('');
+                window.location.reload(); // Reload to apply theme
+            }, 1000);
         } catch (e) {
-            setStatus('Error saving settings: ' + e);
+            setStatus(t('settings_save_error', 'Error saving settings: ') + e);
         }
     };
 
@@ -49,29 +53,29 @@ const Settings = () => {
     };
 
     const handleBackupSave = async () => {
-        setBackupStatus('Saving backup...');
+        setBackupStatus(t('settings_backup_saving', 'Saving backup...'));
         try {
             const result = await window.ipcRenderer.invoke('save-backup');
             if (result.success) {
-                setBackupStatus('Backup saved successfully!');
+                setBackupStatus(t('settings_backup_success', 'Backup saved successfully!'));
             } else if (result.canceled) {
                 setBackupStatus('');
             } else {
-                setBackupStatus('Backup failed: ' + result.error);
+                setBackupStatus(t('settings_backup_failed', 'Backup failed: ') + result.error);
             }
         } catch (e) {
-            setBackupStatus('Error: ' + e);
+            setBackupStatus(t('common.error', 'Error') + ': ' + e);
         }
     };
 
     const handleRestore = async () => {
         setConfirmDialog({
             open: true,
-            title: t('settings_restore_confirm_title', 'Restore Backup'),
+            title: t('settings_restore_title', 'Restore Backup'),
             message: t('settings_restore_confirm_msg', 'CAUTION: This will overwrite your current data with the backup file.\n\nThe application will create a safety copy of current data before restoring.\n\nContinue?'),
             onConfirm: async () => {
                 setConfirmDialog(prev => ({ ...prev, open: false }));
-                setBackupStatus('Restoring...');
+                setBackupStatus(t('settings_restoring', 'Restoring...'));
                 try {
                     const result = await window.ipcRenderer.invoke('restore-backup');
                     if (result.success) {
@@ -80,10 +84,10 @@ const Settings = () => {
                     } else if (result.canceled) {
                         setBackupStatus('');
                     } else {
-                        setBackupStatus('Restore failed: ' + result.error);
+                        setBackupStatus(t('settings_restore_failed', 'Restore failed: ') + result.error);
                     }
                 } catch (e) {
-                    setBackupStatus('Error: ' + e);
+                    setBackupStatus(t('common.error', 'Error') + ': ' + e);
                 }
             }
         });
@@ -129,7 +133,7 @@ const Settings = () => {
                                     }}
                                 />
                             </div>
-                            <span className="text-xs text-gray-400 hidden md:inline">{t('settings_auto_fill', 'Auto-fill available')}</span>
+                            <span className="text-xs text-gray-400 hidden md:inline">{t('settings_zip_auto_fill', 'Auto-fill available')}</span>
                         </div>
                     </div>
                     <div className="md:col-span-2">
@@ -180,8 +184,48 @@ const Settings = () => {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_reg_number', 'Invoice Registration No. (T-Number)')}</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_registration_number', 'Invoice Registration No. (T-Number)')}</label>
                         <input className="input-field" value={settings.RegistrationNumber} onChange={e => handleChange('RegistrationNumber', e.target.value)} />
+                    </div>
+                </div>
+
+                <h4 className="text-md font-semibold text-gray-700 mt-6 mb-4">{t('settings_branding', 'Branding & Theme')}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_logo', 'Company Logo')}</label>
+                        <div className="flex items-center gap-4">
+                            {settings.Logo && (
+                                <img src={settings.Logo} alt="Logo" className="h-12 w-auto object-contain border rounded p-1" />
+                            )}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
+                                onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                            handleChange('Logo', reader.result as string);
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">{t('settings_logo_hint', 'Recommended: Transparent PNG, max 200px width.')}</p>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_primary_color', 'Primary Theme Color')}</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="color"
+                                value={settings.PrimaryColor || '#1976d2'}
+                                onChange={e => handleChange('PrimaryColor', e.target.value)}
+                                className="h-10 w-20 p-1 rounded border cursor-pointer"
+                            />
+                            <span className="text-sm text-gray-600 font-mono">{settings.PrimaryColor || '#1976d2'}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -198,8 +242,8 @@ const Settings = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings_account_type', 'Account Type')}</label>
                         <select className="input-field" value={settings.AccountType} onChange={e => handleChange('AccountType', e.target.value)}>
-                            <option value="普通">普通 (Futsuu)</option>
-                            <option value="当座">当座 (Touza)</option>
+                            <option value="普通">{t('settings_account_type_ordinary', '普通 (Futsuu)')}</option>
+                            <option value="当座">{t('settings_account_type_checking', '当座 (Touza)')}</option>
                         </select>
                     </div>
                     <div>
@@ -220,7 +264,7 @@ const Settings = () => {
 
             {/* Data Management */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('settings_data_mgmt', 'Data Management')}</h3>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('settings_data_management', 'Data Management')}</h3>
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div>

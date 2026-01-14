@@ -303,7 +303,7 @@ const Products = () => {
                         startIcon={<AddIcon />}
                         onClick={() => openModal()}
                     >
-                        {t('add_product', 'Add Product')}
+                        {t('products_add_product_btn', 'Add Product')}
                     </Button>
                 </Box>
             </Box>
@@ -360,11 +360,11 @@ const Products = () => {
                     <TableHead sx={{ bgcolor: 'grey.50' }}>
                         <TableRow>
                             {[
-                                { key: 'Code', label: 'Code', width: 100 },
+                                { key: 'Code', label: t('products_code_header', 'Code'), width: 100 },
                                 { key: 'Name', label: t('products_name', 'Product Info') },
                                 { key: 'Project', label: t('products_category', 'Project') },
                                 { key: 'UnitPrice', label: t('products_price', 'Price'), align: 'right' },
-                                { key: 'IsActive', label: t('products_status', 'Status'), align: 'center' }
+                                { key: 'IsActive', label: t('products_status_header', 'Status'), align: 'center' }
                             ].map(({ key, label, width, align }) => (
                                 <TableCell
                                     key={key}
@@ -454,7 +454,7 @@ const Products = () => {
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
-                                            label="Project / End Client"
+                                            label={t('products_project_label', 'Project / End Client')}
                                             helperText={
                                                 <Typography
                                                     variant="caption"

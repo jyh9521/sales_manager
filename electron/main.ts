@@ -178,6 +178,7 @@ app.whenReady().then(async () => {
                         InvoiceDate='${invoiceDate}', 
                         DueDate=${dueDate ? `'${dueDate}'` : 'NULL'}, 
                         TotalAmount=${invoice.TotalAmount},
+                        Status='${invoice.Status || 'Unpaid'}',
                         ExampleField='${invoice.ExampleField || ''}'
                     WHERE ID=${invoiceID}
                 `);
@@ -186,8 +187,8 @@ app.whenReady().then(async () => {
       } else {
         // Insert
         await connection.query(`
-                    INSERT INTO Invoices (ClientID, InvoiceDate, DueDate, TotalAmount, ExampleField)
-                    VALUES (${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : 'NULL'}, ${invoice.TotalAmount}, '${invoice.ExampleField || ''}')
+                    INSERT INTO Invoices (ClientID, InvoiceDate, DueDate, TotalAmount, Status, ExampleField)
+                    VALUES (${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : 'NULL'}, ${invoice.TotalAmount}, '${invoice.Status || 'Unpaid'}', '${invoice.ExampleField || ''}')
                 `);
         // Get last ID
         const res = await connection.query('SELECT @@IDENTITY AS id') as any[];

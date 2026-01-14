@@ -158,7 +158,7 @@ const Clients = () => {
                     startIcon={<AddIcon />}
                     onClick={() => openEditModal()}
                 >
-                    {t('clients_add_client', 'Add Client')}
+                    {t('clients_add_client_btn', 'Add Client')}
                 </Button>
             </Box>
 
@@ -216,7 +216,7 @@ const Clients = () => {
                                             onClick={(e) => { e.stopPropagation(); setInvoiceClientId(client.ID); }}
                                             sx={{ mr: 1 }}
                                         >
-                                            Invoices
+                                            {t('clients_invoices_action', 'Invoices')}
                                         </Button>
                                         <Button
                                             size="small"
@@ -271,7 +271,7 @@ const Clients = () => {
                                         startIcon={<InvoiceIcon />}
                                         onClick={(e) => { e.stopPropagation(); setInvoiceClientId(client.ID); }}
                                     >
-                                        Invoices
+                                        {t('clients_invoices_action', 'Invoices')}
                                     </Button>
                                     <Button
                                         size="small"
@@ -414,7 +414,7 @@ const Clients = () => {
                                     color="primary"
                                 />
                             }
-                            label={t('clients_active_client', 'Active Client')}
+                            label={t('clients_active_client_label', 'Active Client')}
                         />
                     </Box>
                 </DialogContent>

@@ -1,7 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
-import { Grid, Paper, Typography, Box, useMediaQuery } from '@mui/material';
+import { Grid, Paper, Typography, Box } from '@mui/material';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, PieChart, Pie, Cell, Legend
@@ -16,7 +16,6 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 const Dashboard = () => {
     const { t } = useTranslation();
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -101,7 +100,7 @@ const Dashboard = () => {
     return (
         <Box sx={{ p: 3 }}>
             <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
-                Dashboard
+                {t('dashboard')}
             </Typography>
 
             <Grid container spacing={3}>
@@ -174,7 +173,7 @@ const Dashboard = () => {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {stats.productDistribution.map((entry, index) => (
+                                    {stats.productDistribution.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>

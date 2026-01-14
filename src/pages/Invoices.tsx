@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Invoice, invoiceService, InvoiceItem } from '../services/invoices';
 import { Client, clientService } from '../services/clients';
@@ -8,7 +8,7 @@ import { Unit, unitService } from '../services/units';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Button, TextField, IconButton, MenuItem, Box, Typography,
-    Grid, InputAdornment, Autocomplete, Dialog, Checkbox
+    Grid, InputAdornment, Autocomplete, Dialog, Checkbox, Select, Switch
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -36,16 +36,20 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
     // Filters
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [statusFilter, setStatusFilter] = useState<'All' | 'Unpaid' | 'Paid' | 'Sent'>('All');
 
     // Create/View State
     const [isCreateMode, setIsCreateMode] = useState(false);
     const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null); // For Edit Mode
+    const [manualId, setManualId] = useState<string>('');
+    const [manualStatus, setManualStatus] = useState<'Unpaid' | 'Paid' | 'Sent'>('Unpaid');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'InvoiceDate', direction: 'desc' });
 
     // Form State
     const [selectedClientId, setSelectedClientId] = useState<number | null>(filterClientId || null);
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+    const [dueDate, setDueDate] = useState<string>('');
     const [items, setItems] = useState<InvoiceItem[]>([]);
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<number>>(new Set());
 
@@ -92,7 +96,19 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setLoading(false);
     };
 
-    const handleSave = async () => {
+    const handleCreateNew = () => {
+        setIsCreateMode(true);
+        setEditingInvoice(null);
+        setItems([]);
+        const nextId = invoices.length > 0 ? Math.max(...invoices.map(i => i.ID)) + 1 : 1;
+        setManualId(String(nextId));
+        setManualStatus('Unpaid');
+        setInvoiceDate(new Date().toISOString().slice(0, 10));
+        setDueDate(new Date(new Date().getFullYear(), new Date().getMonth() + 2, 0).toISOString().slice(0, 10));
+        if (filterClientId) setSelectedClientId(filterClientId);
+    };
+
+    const handleSave = async (action: 'create' | 'update') => {
         if (!selectedClientId) {
             showToast('Please select a client', 'error');
             return;
@@ -103,51 +119,67 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         }
 
         const total = items.reduce((sum, item) => sum + (item.UnitPrice * item.Quantity), 0);
+        const idToUse = Number(manualId);
 
-        // Omit ID since database assigns it
-        const newInvoice: Omit<Invoice, 'ID'> = {
+        if (action === 'create') {
+            if (invoices.some(i => i.ID === idToUse)) {
+                showToast(`Invoice ID #${idToUse} already exists.`, 'error');
+                return;
+            }
+        }
+
+        const newInvoice: any = {
+            ID: idToUse,
             ClientID: selectedClientId,
             InvoiceDate: invoiceDate,
+            DueDate: dueDate,
             Items: items,
-            TotalAmount: total
+            TotalAmount: total,
+            Status: manualStatus
         };
 
-        await invoiceService.create(newInvoice);
-        showToast('Invoice created successfully');
+        if (action === 'update') {
+            await invoiceService.update(newInvoice);
+            showToast(t('invoices_saved', 'Invoice updated successfully'));
+        } else {
+            await invoiceService.create(newInvoice);
+            showToast(t('invoices_saved', 'Invoice created successfully'));
+        }
 
         setIsCreateMode(false);
         setEditingInvoice(null);
         setItems([]);
-        setSelectedClientId(filterClientId || null);
+        setManualId('');
+        setManualStatus('Unpaid');
         loadData();
     };
 
     const handleEditInvoice = (invoice: Invoice) => {
         setEditingInvoice(invoice);
+        setManualId(String(invoice.ID));
+        setManualStatus(invoice.Status || 'Unpaid');
         setViewInvoice(null);
         setIsCreateMode(true);
 
         // Populate Form
         setSelectedClientId(invoice.ClientID);
         setInvoiceDate(new Date(invoice.InvoiceDate).toISOString().slice(0, 10));
+        setDueDate(invoice.DueDate ? new Date(invoice.DueDate).toISOString().slice(0, 10) : '');
         setItems(invoice.Items.map(i => ({
             ...i,
-            // Ensure legacy data works?
             TaxRate: i.TaxRate || 10
         })));
-
-        // Load Client's products if needed? Usually auto-loaded.
     };
 
     const handleDelete = (id: number) => {
         setConfirmDialog({
             open: true,
-            title: t('delete_invoice', 'Delete Invoice'),
-            message: t('confirm_delete_msg', 'Are you sure you want to delete this invoice?'),
+            title: t('common.delete', 'Delete Invoice'),
+            message: t('common.confirm_delete', 'Are you sure you want to delete this invoice?'),
             onConfirm: async () => {
                 await invoiceService.delete(id);
                 setConfirmDialog(prev => ({ ...prev, open: false }));
-                showToast('Invoice deleted');
+                showToast(t('invoices_deleted', 'Invoice deleted'));
                 loadData();
             }
         });
@@ -192,7 +224,8 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         const matchesClient = filterClientId ? inv.ClientID === filterClientId : true;
         const invMonth = new Date(inv.InvoiceDate).toISOString().slice(0, 7);
         const matchesMonth = monthFilter ? invMonth === monthFilter : true;
-        return matchesClient && matchesMonth;
+        const matchesStatus = statusFilter === 'All' ? true : (inv.Status || 'Unpaid') === statusFilter;
+        return matchesClient && matchesMonth && matchesStatus;
     }).sort((a, b) => {
         let comparison = 0;
 
@@ -290,7 +323,15 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
     // CSV Export
     const handleExportCSV = (invoice: Invoice) => {
-        const headers = ['Date', 'Product', 'Quantity', 'Unit', 'UnitPrice', 'Total', 'Remarks'];
+        const headers = [
+            t('csv_date', 'Date'),
+            t('csv_product', 'Product'),
+            t('csv_quantity', 'Quantity'),
+            t('csv_unit', 'Unit'),
+            t('csv_unit_price', 'UnitPrice'),
+            t('csv_total', 'Total'),
+            t('csv_remarks', 'Remarks')
+        ];
         const rows = (invoice.Items || []).map(item => [
             item.ItemDate ? new Date(item.ItemDate).toLocaleDateString() : '',
             item.ProductName,
@@ -405,7 +446,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                     ご請求金額
                                 </div>
                                 <div className="flex-1 flex items-center justify-end px-4 text-2xl font-bold tracking-wider">
-                                    ¥{total.toLocaleString()} -
+                                    ¥{total.toLocaleString()}
                                 </div>
                             </div>
                         </div>
@@ -592,14 +633,14 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             >
                 <div className="flex flex-col items-center p-4 min-h-screen bg-gray-100 dark:bg-gray-900">
                     <div className="w-full max-w-4xl flex justify-between items-center mb-4 text-gray-800 dark:text-white print:hidden sticky top-0 bg-gray-100 dark:bg-gray-900 z-10 py-2">
-                        <h2 className="text-xl font-bold">{t('invoices_preview', 'Invoice Preview')}</h2>
+                        <h2 className="text-xl font-bold">{t('invoices_preview_title', 'Invoice Preview')}</h2>
                         <div className="flex gap-2">
                             <Button
                                 variant="outlined"
                                 startIcon={<DownloadIcon />}
                                 onClick={() => handleExportCSV(viewInvoice)}
                             >
-                                {t('invoices_csv', 'CSV')}
+                                {t('invoices_btn_csv', 'CSV')}
                             </Button>
                             <Button
                                 variant="contained"
@@ -607,7 +648,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 startIcon={<PrintIcon />}
                                 onClick={() => window.print()}
                             >
-                                {t('invoices_print', 'Print')}
+                                {t('invoices_btn_print', 'Print')}
                             </Button>
                             <Button
                                 variant="contained"
@@ -615,14 +656,14 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 startIcon={<EditIcon />}
                                 onClick={() => handleEditInvoice(viewInvoice)}
                             >
-                                {t('common.edit', 'Edit')}
+                                {t('invoices_btn_edit', 'Edit')}
                             </Button>
                             <Button
                                 variant="outlined"
                                 color="inherit"
                                 onClick={() => setViewInvoice(null)}
                             >
-                                {t('common.close', 'Close')}
+                                {t('invoices_btn_close', 'Close')}
                             </Button>
                         </div>
                     </div>
@@ -663,7 +704,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1, minHeight: '80vh' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
                     <Typography variant="h5" fontWeight="bold">
-                        {editingInvoice ? `${t('invoices_edit_title', 'Edit Invoice #')}${String(editingInvoice.ID).padStart(8, '0')} ` : t('invoices_create_title', 'Create New Invoice')}
+                        {editingInvoice ? `${t('invoices_edit', 'Edit Invoice')} #${String(editingInvoice.ID).padStart(8, '0')} ` : t('invoices_create_title', 'Create New Invoice')}
                     </Typography>
                     <Button
                         onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }}
@@ -674,8 +715,36 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     </Button>
                 </Box>
 
-                <Grid container spacing={4} sx={{ mb: 4 }}>
-                    <Grid size={6}>
+
+                <Grid container spacing={2} sx={{ mb: 4 }}>
+                    {/* Status Select: Show only when editing existing invoice or manual ID is present */}
+                    {/* Status Select: Show ONLY when editing existing invoice (editingInvoice is set). Hide for new invoices. */}
+                    {editingInvoice && (
+                        <Grid size={2}>
+                            <TextField
+                                select
+                                fullWidth
+                                label={t('invoices_status', 'Status')}
+                                value={manualStatus}
+                                onChange={(e) => setManualStatus(e.target.value as any)}
+                                variant="outlined"
+                            >
+                                <MenuItem value="Unpaid">{t('status_unpaid', 'Unsent')}</MenuItem>
+                                <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
+                            </TextField>
+                        </Grid>
+                    )}
+                    <Grid size={2}>
+                        <TextField
+                            label={t('invoices_manual_id', 'Invoice ID')}
+                            value={manualId}
+                            onChange={(e) => setManualId(e.target.value)}
+                            fullWidth
+                            variant="outlined"
+                            disabled={false}
+                        />
+                    </Grid>
+                    <Grid size={4}>
                         <TextField
                             select
                             fullWidth
@@ -687,13 +756,13 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             }}
                             variant="outlined"
                         >
-                            <MenuItem value=""><em>{t('invoices_select_client', 'Select Client...')}</em></MenuItem>
+                            <MenuItem value=""><em>Select Client...</em></MenuItem>
                             {clients.filter(c => c.IsActive).map(c => (
                                 <MenuItem key={c.ID} value={c.ID}>{c.Name}</MenuItem>
                             ))}
                         </TextField>
                     </Grid>
-                    <Grid size={6}>
+                    <Grid size={2}>
                         <TextField
                             type="date"
                             fullWidth
@@ -701,6 +770,17 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             InputLabelProps={{ shrink: true }}
                             value={invoiceDate}
                             onChange={e => setInvoiceDate(e.target.value)}
+                            variant="outlined"
+                        />
+                    </Grid>
+                    <Grid size={2}>
+                        <TextField
+                            type="date"
+                            fullWidth
+                            label={t('invoices_due_date', 'Due Date')}
+                            InputLabelProps={{ shrink: true }}
+                            value={dueDate}
+                            onChange={e => setDueDate(e.target.value)}
                             variant="outlined"
                         />
                     </Grid>
@@ -714,9 +794,9 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             <TableHead sx={{ bgcolor: 'grey.50' }}>
                                 <TableRow>
                                     <TableCell width="120">{t('invoices_date', 'Date')}</TableCell>
-                                    <TableCell width="250">{t('invoices_product', 'Product')}</TableCell>
+                                    <TableCell width="250">{t('products_name', 'Product')}</TableCell>
                                     <TableCell width="100">{t('invoices_unit_price', 'Unit Price')}</TableCell>
-                                    <TableCell width="80">{t('invoices_qty', 'Qty')}</TableCell>
+                                    <TableCell width="80">{t('invoices_quantity', 'Qty')}</TableCell>
                                     <TableCell width="100">{t('invoices_unit', 'Unit')}</TableCell>
                                     <TableCell align="right" width="120">{t('invoices_total', 'Total')}</TableCell>
                                     <TableCell>{t('invoices_remarks', 'Remarks')}</TableCell>
@@ -740,7 +820,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                             <TextField
                                                 fullWidth
                                                 variant="standard"
-                                                placeholder="Product Name"
+                                                placeholder={t('products_name', 'Product Name')}
                                                 InputProps={{ disableUnderline: true }}
                                                 value={item.ProductName}
                                                 onChange={e => updateItem(idx, 'ProductName', e.target.value)}
@@ -791,7 +871,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                             <TextField
                                                 fullWidth
                                                 variant="standard"
-                                                placeholder="Memo"
+                                                placeholder={t('invoices_remarks', 'Memo')}
                                                 InputProps={{ disableUnderline: true }}
                                                 value={item.Remarks || ''}
                                                 onChange={e => updateItem(idx, 'Remarks', e.target.value)}
@@ -823,7 +903,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 renderInput={(params) => (
                                     <TextField
                                         {...params}
-                                        placeholder="Search product to add..."
+                                        placeholder={t('invoices_search_product_placeholder', 'Search product to add...')}
                                         size="small"
                                         InputProps={{
                                             ...params.InputProps,
@@ -836,43 +916,69 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                         disabled={!selectedClientId}
                                     />
                                 )}
-                                disabled={!selectedClientId}
+                                renderOption={(props, option) => (
+                                    <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <div>
+                                            <Typography variant="body2" color="text.primary">{option.Name}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{option.Code}</Typography>
+                                        </div>
+                                        <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
+                                            ¥{option.UnitPrice.toLocaleString()}
+                                        </Typography>
+                                    </li>
+                                )}
                             />
                         </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                            <Button size="small" onClick={() => addItem()}>{t('invoices_add_empty_row', 'Or Add Empty Row')}</Button>
-                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                            {t('common.or', 'Or')} <Button size="small" onClick={() => addItem()}>{t('invoices_add_empty_row', 'Add Empty Row')}</Button>
+                        </Typography>
                     </Box>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 3, borderTop: 1, borderColor: 'divider' }}>
-                    <Box sx={{ width: 300, bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
-                        <Grid container justifyContent="space-between" sx={{ mb: 1 }}>
+                    <Box sx={{ width: 300 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
                             <Typography>{t('invoices_subtotal', 'Subtotal')}</Typography>
                             <Typography>¥{calculateTaxSummary().subtotal.toLocaleString()}</Typography>
-                        </Grid>
-                        <Grid container justifyContent="space-between" sx={{ mb: 1 }}>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
                             <Typography>{t('invoices_tax_total', 'Tax (Total)')}</Typography>
                             <Typography>¥{calculateTaxSummary().totalTax.toLocaleString()}</Typography>
-                        </Grid>
-                        <Box sx={{ my: 1, borderTop: 1, borderColor: 'divider' }} />
-                        <Grid container justifyContent="space-between">
-                            <Typography variant="h6" fontWeight="bold">{t('invoices_total', 'Total')}</Typography>
+                        </Box>
+                        {calculateTaxSummary().reducedSubtotal > 0 && (
+                            <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mb: 1, color: 'text.disabled' }}>
+                                ({t('invoices_tax_standard', 'Standard')}: ¥{calculateTaxSummary().standardTax}, {t('invoices_tax_reduced', 'Reduced')}: ¥{calculateTaxSummary().reducedTax})
+                            </Typography>
+                        )}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: 1, borderColor: 'divider', mb: 2 }}>
+                            <Typography variant="h6" fontWeight="bold">{t('invoices_total_final', 'Total')}</Typography>
                             <Typography variant="h6" fontWeight="bold">¥{calculateTotal().toLocaleString()}</Typography>
-                        </Grid>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
+                            {editingInvoice && (
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    color="primary"
+                                    size="large"
+                                    onClick={() => handleSave('create')} // Save as New -> Create
+                                >
+                                    {t('common.save_as_new', 'Save as New')}
+                                </Button>
+                            )}
+                            <Button
+                                fullWidth
+                                variant="contained"
+                                color="primary"
+                                size="large"
+                                onClick={() => handleSave(editingInvoice ? 'update' : 'create')}
+                            >
+                                {editingInvoice ? t('common.overwrite', 'Save (Overwrite)') : t('invoices_save', 'Save Invoice')}
+                            </Button>
+                        </Box>
                     </Box>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={handleSave}
-                        sx={{ minWidth: 200 }}
-                    >
-                        {t('invoices_save', 'Save Invoice')}
-                    </Button>
-                </Box>
-            </Box>
+            </Box >
         );
     }
 
@@ -894,6 +1000,20 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         </Button>
                     )}
                     <TextField
+                        select
+                        label={t('invoices_status', 'Status')}
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                        variant="outlined"
+                        size="small"
+                        sx={{ width: 120, bgcolor: 'background.paper' }}
+                    >
+                        <MenuItem value="All">{t('common.all', 'All')}</MenuItem>
+                        <MenuItem value="Unpaid">{t('status_unpaid', 'Unpaid')}</MenuItem>
+                        <MenuItem value="Sent">{t('status_sent', 'Sent')}</MenuItem>
+                        <MenuItem value="Paid">{t('status_paid', 'Paid')}</MenuItem>
+                    </TextField>
+                    <TextField
                         type="month"
                         variant="outlined"
                         size="small"
@@ -906,9 +1026,9 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     variant="contained"
                     color="primary"
                     startIcon={<AddIcon />}
-                    onClick={() => setIsCreateMode(true)}
+                    onClick={handleCreateNew}
                 >
-                    {t('new_invoice', 'New Invoice')}
+                    {t('invoices_new_invoice_btn', 'New Invoice')}
                 </Button>
             </Box>
 
@@ -930,20 +1050,21 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 />
                             </TableCell>
                             <TableCell onClick={() => handleSort('InvoiceDate')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                Date {sortConfig.key === 'InvoiceDate' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                {t('invoices_col_date', 'Date')} {sortConfig.key === 'InvoiceDate' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                             </TableCell>
                             <TableCell onClick={() => handleSort('ID')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                ID {sortConfig.key === 'ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                {t('invoices_col_id', 'ID')} {sortConfig.key === 'ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                             </TableCell>
                             {!filterClientId && (
                                 <TableCell onClick={() => handleSort('ClientName')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                    Client {sortConfig.key === 'ClientName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    {t('invoices_col_client', 'Client')} {sortConfig.key === 'ClientName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                 </TableCell>
                             )}
                             <TableCell align="right" onClick={() => handleSort('TotalAmount')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
-                                Amount {sortConfig.key === 'TotalAmount' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                {t('invoices_col_amount', 'Amount')} {sortConfig.key === 'TotalAmount' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                             </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>{t('invoices_status', 'Status')}</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('invoices_col_actions', 'Actions')}</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -980,6 +1101,27 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                                     ¥{invoice.TotalAmount.toLocaleString()}
                                 </TableCell>
+                                <TableCell>
+
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Typography variant="caption" sx={{ mr: 1, color: invoice.Status === 'Sent' ? 'text.secondary' : 'error.main', fontWeight: 'bold' }}>
+                                            {invoice.Status === 'Sent' ? t('status_sent', 'Sent') : t('status_unpaid', 'Unsent')}
+                                        </Typography>
+                                        <Switch
+                                            size="small"
+                                            checked={invoice.Status === 'Sent'}
+                                            onChange={async (e) => {
+                                                const newStatus = e.target.checked ? 'Sent' : 'Unpaid';
+                                                const updated = { ...invoice, Status: newStatus as 'Unpaid' | 'Paid' | 'Sent' };
+                                                await invoiceService.update(updated);
+                                                const updatedList = await invoiceService.getAll();
+                                                setInvoices(updatedList);
+                                            }}
+                                            color="primary"
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                    </Box>
+                                </TableCell>
                                 <TableCell align="right">
                                     <Button
                                         size="small"
@@ -987,7 +1129,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                         onClick={(e) => { e.stopPropagation(); setViewInvoice(invoice); }}
                                         sx={{ mr: 1 }}
                                     >
-                                        View
+                                        {t('common.view', 'View')}
                                     </Button>
                                     <IconButton
                                         size="small"
@@ -1002,13 +1144,111 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         {sortedInvoices.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                    No invoices found.
+                                    {t('invoices_no_invoices', 'No invoices found.')}
                                 </TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* Invoice Preview Modal */}
+            <Dialog
+                fullScreen
+                open={!!viewInvoice}
+                onClose={() => setViewInvoice(null)}
+                PaperProps={{ sx: { bgcolor: 'background.default' } }}
+            >
+                <Box sx={{ p: 2, bgcolor: 'white', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="print:hidden">
+                    <Typography variant="h6">{t('invoices_preview_title', 'Invoice Preview')}</Typography>
+                    <Box>
+                        <Button onClick={() => window.print()} startIcon={<PrintIcon />} sx={{ mr: 1 }} variant="contained" color="primary">
+                            {t('invoices_btn_print', 'Print')}
+                        </Button>
+                        <Button onClick={() => setViewInvoice(null)} variant="outlined" color="secondary">
+                            {t('invoices_btn_close', 'Close')}
+                        </Button>
+                    </Box>
+                </Box>
+
+                <Box sx={{ p: 8, maxWidth: '210mm', mx: 'auto', bgcolor: 'white', minHeight: '297mm', my: 2, boxShadow: 3 }} className="print:shadow-none print:m-0 print:w-full print:p-0">
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 6 }}>
+                        <Typography variant="h3" fontWeight="bold" color="primary" sx={{ letterSpacing: 2 }}>{t('invoices_title', 'INVOICE')}</Typography>
+                        <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="body1"><strong>{t('invoices_date', 'Date')}:</strong> {viewInvoice && new Date(viewInvoice.InvoiceDate).toLocaleDateString()}</Typography>
+                            <Typography variant="body1"><strong>ID:</strong> #{viewInvoice && String(viewInvoice.ID).padStart(8, '0')}</Typography>
+                            {/* Always render, check validity */}
+                            {(viewInvoice && viewInvoice.DueDate) && (
+                                <Typography variant="body1" color="error"><strong>{t('invoices_due_date', 'Due Date')}:</strong> {new Date(viewInvoice.DueDate).toLocaleDateString()}</Typography>
+                            )}
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 8, alignItems: 'flex-start' }}>
+                        <Box sx={{ width: '50%' }}>
+                            {viewInvoice && (
+                                <Typography variant="h5" fontWeight="bold" sx={{ borderBottom: 2, borderColor: 'divider', pb: 1, mb: 2, display: 'inline-block' }}>
+                                    {clients.find(c => c.ID === viewInvoice.ClientID)?.Name} <span style={{ fontSize: '0.6em', fontWeight: 'normal' }}>{t('common_honorific', '御中')}</span>
+                                </Typography>
+                            )}
+                            <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{clients.find(c => c.ID === viewInvoice?.ClientID)?.Address}</Typography>
+                        </Box>
+
+                        <Box sx={{ width: '40%', textAlign: 'right' }}>
+                            {settings.Logo && (
+                                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                                    <img src={settings.Logo} alt="Logo" style={{ height: 80, objectFit: 'contain' }} />
+                                </Box>
+                            )}
+                            <Typography variant="h6" fontWeight="bold">{settings.CompanyName}</Typography>
+                            <Typography variant="body2">{settings.Address}</Typography>
+                            <Typography variant="body2">{settings.Phone}</Typography>
+                            {settings.RegistrationNumber && <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>{t('settings_registration_number', 'Reg No.')}: {settings.RegistrationNumber}</Typography>}
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ mb: 6, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                        <Typography variant="h4" align="center" fontWeight="bold">
+                            {t('invoices_total_amount', 'Total Amount')}: ¥{viewInvoice?.TotalAmount.toLocaleString()}
+                        </Typography>
+                    </Box>
+
+                    <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ mb: 4 }}>
+                        <Table size="medium">
+                            <TableHead sx={{ bgcolor: 'primary.main' }}>
+                                <TableRow>
+                                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>{t('products_name', 'Item')}</TableCell>
+                                    <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_unit_price', 'Price')}</TableCell>
+                                    <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_quantity', 'Qty')}</TableCell>
+                                    <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>{t('invoices_total', 'Total')}</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {viewInvoice?.Items.map((item, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell>{item.ItemName}</TableCell>
+                                        <TableCell align="right">¥{item.UnitPrice.toLocaleString()}</TableCell>
+                                        <TableCell align="right">{item.Quantity}</TableCell>
+                                        <TableCell align="right">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+
+                    <Box sx={{ mt: 8, p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, borderBottom: 1, pb: 0.5, borderColor: 'grey.300' }}>{t('settings_bank_info', 'Bank Account Info')}</Typography>
+                        <Grid container spacing={2}>
+                            <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_bank_name', 'Bank')}</Typography></Grid>
+                            <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.BankName} {settings.BranchName}</Typography></Grid>
+                            <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_number', 'Account')}</Typography></Grid>
+                            <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountType} {settings.AccountNumber}</Typography></Grid>
+                            <Grid size={3}><Typography variant="body2" color="text.secondary">{t('settings_account_holder', 'Holder')}</Typography></Grid>
+                            <Grid size={9}><Typography variant="body2" fontWeight="medium">{settings.AccountHolder}</Typography></Grid>
+                        </Grid>
+                    </Box>
+                </Box>
+            </Dialog>
 
             <ConfirmDialog
                 open={confirmDialog.open}

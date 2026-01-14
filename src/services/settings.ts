@@ -11,6 +11,8 @@ export interface AppSettings {
     AccountNumber: string;
     AccountHolder: string;
     RegistrationNumber: string; // T番号
+    Logo?: string; // Base64 image
+    PrimaryColor?: string; // Hex color
 }
 
 export const defaultSettings: AppSettings = {
@@ -23,7 +25,9 @@ export const defaultSettings: AppSettings = {
     AccountType: '普通',
     AccountNumber: '1234567',
     AccountHolder: 'カ）xxxx',
-    RegistrationNumber: 'T1234567890123'
+    RegistrationNumber: 'T1234567890123',
+    Logo: '',
+    PrimaryColor: '#1976d2' // Default Blue
 };
 
 export const settingsService = {

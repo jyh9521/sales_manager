@@ -123,11 +123,28 @@ async function createSchema() {
         ClientID LONG,
         InvoiceDate DATETIME,
         TotalAmount CURRENCY,
-        Items MEMO
+        Status VARCHAR(50) DEFAULT 'Unpaid',
+        DueDate DATETIME,
+        ExampleField MEMO
       )
     `).catch(() => { });
 
     // --- MIGRATIONS for Existing DBs ---
+    // Add Status column if missing
+    try {
+      await connection.execute(`ALTER TABLE Invoices ADD COLUMN Status VARCHAR(50) DEFAULT 'Unpaid'`);
+    } catch (e) { /* Column likely exists */ }
+
+    // Add DueDate column if missing
+    try {
+      await connection.execute(`ALTER TABLE Invoices ADD COLUMN DueDate DATETIME`);
+    } catch (e) { /* Column likely exists */ }
+
+    // Add ExampleField column if missing
+    try {
+      await connection.execute(`ALTER TABLE Invoices ADD COLUMN ExampleField MEMO`);
+    } catch (e) { /* Column likely exists */ }
+
     // Add Project column if missing
     try {
       await connection.execute(`ALTER TABLE Products ADD COLUMN Project VARCHAR(255)`);

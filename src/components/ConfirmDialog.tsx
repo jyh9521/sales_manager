@@ -27,17 +27,17 @@ const ConfirmDialog = ({
         <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <WarningIcon color="warning" />
-                {title || t('confirm', 'Confirm')}
+                {title || t('common.confirm', 'Confirm')}
             </DialogTitle>
             <DialogContent>
                 <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{message}</Typography>
             </DialogContent>
             <DialogActions>
                 <Button onClick={onCancel} color="inherit">
-                    {cancelLabel || t('cancel', 'Cancel')}
+                    {cancelLabel || t('common.cancel', 'Cancel')}
                 </Button>
                 <Button onClick={onConfirm} variant="contained" color="error" autoFocus>
-                    {confirmLabel || t('delete', 'Delete')}
+                    {confirmLabel || t('common.delete', 'Delete')}
                 </Button>
             </DialogActions>
         </Dialog>
