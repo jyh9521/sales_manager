@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Client, clientService } from '../services/clients';
-import Invoices from './Invoices'; // Reuse Invoices component with filter prop? Or just navigate?
-// Reusing Invoices component might be complex if it's not designed for props.
-// Let's assume we can pass a prop `initialClientId` or `filterClientId` to Invoices.
-// For now, let's keep it simple: Expand row to show a mini-list or just navigate to Invoices page with filtering.
-// Navigation is better. But current router is state-based in App.tsx.
-// Let's modify Clients to just Manage Clients, but maybe add a "View Invoices" button that triggers a callback?
-// Actually, since everything is in one App, passing props via a state manager or Context is ideal.
-// But here, let's make Invoices accept a prop `clientId`. 
-// Wait, I can't easily change `currentView` from here without passing `setCurrentView` down.
-// Simpler: Add a modal here that renders <Invoices clientId={selectedId} embedded />.
+import Invoices from './Invoices';
+import {
+    Box, Typography, Button, FormControlLabel, Checkbox,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+    Dialog, DialogTitle, DialogContent, DialogActions,
+    Switch, Chip, TextField
+} from '@mui/material';
+import {
+    Add as AddIcon,
+    Edit as EditIcon,
+    Description as InvoiceIcon
+} from '@mui/icons-material';
 
 const Clients = () => {
     const { t } = useTranslation();
@@ -60,13 +62,6 @@ const Clients = () => {
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (confirm(t('confirm_delete', 'Are you sure?'))) {
-            await clientService.delete(id);
-            loadData();
-        }
-    };
-
     const openEditModal = (client?: Client) => {
         if (client) {
             setCurrentClient({ ...client });
@@ -98,221 +93,248 @@ const Clients = () => {
     // If viewing invoices, we render the Invoices component in "filtered mode" inside a full screen overlay
     if (invoiceClientId !== null) {
         return (
-            <div className="fixed inset-0 bg-gray-50 z-50 overflow-auto">
-                <div className="p-4 border-b bg-white sticky top-0 flex justify-between items-center shadow-sm">
-                    <h2 className="text-xl font-bold text-gray-800">
+            <Dialog
+                fullScreen
+                open={true}
+                onClose={() => setInvoiceClientId(null)}
+                PaperProps={{ sx: { bgcolor: 'background.default' } }}
+            >
+                <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'white' }}>
+                    <Typography variant="h6" fontWeight="bold">
                         Invoices for {clients.find(c => c.ID === invoiceClientId)?.Name}
-                    </h2>
-                    <button
-                        onClick={() => setInvoiceClientId(null)}
-                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-gray-700 font-medium"
-                    >
+                    </Typography>
+                    <Button onClick={() => setInvoiceClientId(null)} variant="outlined">
                         Close & Return to Clients
-                    </button>
-                </div>
-                <div className="max-w-7xl mx-auto p-6">
+                    </Button>
+                </Box>
+                <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', width: '100%' }}>
                     <Invoices filterClientId={invoiceClientId} />
-                </div>
-            </div>
+                </Box>
+            </Dialog>
         );
     }
 
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-2xl font-bold text-gray-800">{t('clients', 'Clients')}</h2>
-                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={showInactive}
-                            onChange={e => setShowInactive(e.target.checked)}
-                            className="rounded text-indigo-600 focus:ring-indigo-500"
-                        />
-                        Show Inactive
-                    </label>
-                </div>
-                <button
+        <Box sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                        {t('clients', 'Clients')}
+                    </Typography>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={showInactive}
+                                onChange={e => setShowInactive(e.target.checked)}
+                                color="primary"
+                            />
+                        }
+                        label="Show Inactive"
+                    />
+                </Box>
+                <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
                     onClick={() => openEditModal()}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow transition-colors flex items-center gap-2"
                 >
-                    <span>+</span> {t('add_client', 'Add Client')}
-                </button>
-            </div>
+                    {t('add_client', 'Add Client')}
+                </Button>
+            </Box>
 
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
+            <TableContainer component={Paper} elevation={1}>
+                <Table sx={{ minWidth: 650 }} aria-label="clients table">
+                    <TableHead sx={{ bgcolor: 'grey.50' }}>
+                        <TableRow>
                             {[
                                 { key: 'ID', label: 'ID' },
                                 { key: 'Name', label: 'Name' },
                                 { key: 'ContactInfo', label: 'Contact' },
                                 { key: 'IsActive', label: 'Status' }
                             ].map(({ key, label }) => (
-                                <th
+                                <TableCell
                                     key={key}
-                                    className="px-6 py-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors select-none"
                                     onClick={() => handleSort(key as keyof Client)}
+                                    sx={{ cursor: 'pointer', fontWeight: 'bold' }}
                                 >
-                                    <div className="flex items-center gap-1">
-                                        {label}
-                                        {sortConfig?.key === key && (
-                                            <span className="text-indigo-600 text-xs">
-                                                {sortConfig.direction === 'asc' ? '▲' : '▼'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </th>
+                                    {label} {sortConfig?.key === key && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                </TableCell>
                             ))}
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {filteredClients.map(client => (
-                            <tr key={client.ID} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setInvoiceClientId(client.ID)}>
-                                <td className="px-6 py-4 text-gray-500 font-mono text-sm">#{client.ID}</td>
-                                <td className="px-6 py-4 font-medium text-gray-800">
-                                    {client.Name}
-                                    <div className="text-xs text-gray-400 mt-1 max-w-xs truncate">{client.Address}</div>
-                                </td>
-                                <td className="px-6 py-4 text-gray-600">{client.ContactInfo}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${client.IsActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                                        {client.IsActive ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => setInvoiceClientId(client.ID)} className="text-indigo-600 hover:text-indigo-800 font-medium text-sm mr-2">Invoices</button>
-                                    <button onClick={() => openEditModal(client)} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Edit</button>
-                                </td>
-                            </tr>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {filteredClients.map((client) => (
+                            <TableRow
+                                key={client.ID}
+                                hover
+                                onClick={() => setInvoiceClientId(client.ID)}
+                                sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
+                            >
+                                <TableCell sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>#{client.ID}</TableCell>
+                                <TableCell>
+                                    <Typography variant="subtitle2" fontWeight="bold">{client.Name}</Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 300 }}>
+                                        {client.Address}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>{client.ContactInfo}</TableCell>
+                                <TableCell>
+                                    <Chip
+                                        label={client.IsActive ? 'Active' : 'Inactive'}
+                                        color={client.IsActive ? 'success' : 'default'}
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                </TableCell>
+                                <TableCell align="right">
+                                    <Button
+                                        size="small"
+                                        startIcon={<InvoiceIcon />}
+                                        onClick={(e) => { e.stopPropagation(); setInvoiceClientId(client.ID); }}
+                                        sx={{ mr: 1 }}
+                                    >
+                                        Invoices
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        startIcon={<EditIcon />}
+                                        onClick={(e) => { e.stopPropagation(); openEditModal(client); }}
+                                        color="secondary"
+                                    >
+                                        Edit
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
                         ))}
-                    </tbody>
-                </table>
-            </div>
+                        {filteredClients.length === 0 && !loading && (
+                            <TableRow>
+                                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                    No clients found.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
             {/* Edit Modal */}
-            {isEditModalOpen && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-                        <h3 className="text-xl font-bold mb-4 text-gray-800">{currentClient.ID ? 'Edit Client' : 'New Client'}</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                                <input className="input-field" value={currentClient.Name} onChange={e => setCurrentClient({ ...currentClient, Name: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                                {/* Zip Helper */}
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all bg-white">
-                                        <span className="pl-3 pr-1 text-gray-500 font-medium select-none text-xs">〒</span>
-                                        <input
-                                            className="p-1.5 outline-none w-24 text-sm text-gray-700 placeholder-gray-300"
-                                            placeholder="Zip Search"
-                                            maxLength={7}
-                                            onChange={async e => {
-                                                const val = e.target.value.replace(/[^0-9]/g, '');
-                                                e.target.value = val;
-                                                if (val.length === 7) {
-                                                    try {
-                                                        const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${val}`);
-                                                        const data = await res.json();
-                                                        if (data.results && data.results[0]) {
-                                                            const addr = `${data.results[0].address1}${data.results[0].address2}${data.results[0].address3}`;
-                                                            // Provide feedback or just fill?
-                                                            // Keep existing address if user typed something? Maybe just append or replace.
-                                                            // Let's replace for simplicity as it helps when starting fresh.
-                                                            // But maybe format it: "〒Zip Address" ? User wanted separate field but DB has one.
-                                                            // Let's just put the address text.
-                                                            setCurrentClient(prev => ({ ...prev, Address: addr }));
-                                                        }
-                                                    } catch (err) {
-                                                        // ignore
-                                                    }
+            <Dialog open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    {currentClient.ID ? 'Edit Client' : 'New Client'}
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <TextField
+                            label="Company Name"
+                            fullWidth
+                            value={currentClient.Name}
+                            onChange={e => setCurrentClient({ ...currentClient, Name: e.target.value })}
+                            variant="outlined"
+                        />
+
+                        <Box>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>Address</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>〒</Typography>
+                                <TextField
+                                    placeholder="Zip Search"
+                                    size="small"
+                                    inputProps={{ maxLength: 7 }}
+                                    onChange={async e => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        e.target.value = val;
+                                        if (val.length === 7) {
+                                            try {
+                                                const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${val}`);
+                                                const data = await res.json();
+                                                if (data.results && data.results[0]) {
+                                                    const addr = `${data.results[0].address1}${data.results[0].address2}${data.results[0].address3}`;
+                                                    setCurrentClient(prev => ({ ...prev, Address: addr }));
                                                 }
-                                            }}
-                                        />
-                                    </div>
-                                    <span className="text-xs text-gray-400">Enter 7 digits to auto-fill address</span>
-                                </div>
-                                <textarea className="input-field" rows={3} value={currentClient.Address} onChange={e => setCurrentClient({ ...currentClient, Address: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number (Contact Info)</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        className="input-field text-center px-1"
-                                        style={{ width: '30%' }}
-                                        placeholder="03"
-                                        value={currentClient.ContactInfo ? currentClient.ContactInfo.split('-')[0] : ''}
-                                        onChange={e => {
-                                            const parts = (currentClient.ContactInfo || '').split('-');
-                                            while (parts.length < 3) parts.push('');
-                                            parts[0] = e.target.value;
-                                            setCurrentClient({ ...currentClient, ContactInfo: parts.join('-') });
-                                        }}
-                                    />
-                                    <span className="text-gray-400">-</span>
-                                    <input
-                                        className="input-field text-center px-1"
-                                        style={{ width: '35%' }}
-                                        placeholder="0000"
-                                        value={currentClient.ContactInfo ? currentClient.ContactInfo.split('-')[1] || '' : ''}
-                                        onChange={e => {
-                                            const parts = (currentClient.ContactInfo || '').split('-');
-                                            while (parts.length < 3) parts.push('');
-                                            parts[1] = e.target.value;
-                                            setCurrentClient({ ...currentClient, ContactInfo: parts.join('-') });
-                                        }}
-                                    />
-                                    <span className="text-gray-400">-</span>
-                                    <input
-                                        className="input-field text-center px-1"
-                                        style={{ width: '35%' }}
-                                        placeholder="0000"
-                                        value={currentClient.ContactInfo ? currentClient.ContactInfo.split('-')[2] || '' : ''}
-                                        onChange={e => {
-                                            const parts = (currentClient.ContactInfo || '').split('-');
-                                            while (parts.length < 3) parts.push('');
-                                            parts[2] = e.target.value;
-                                            setCurrentClient({ ...currentClient, ContactInfo: parts.join('-') });
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                            <label className="flex items-center gap-2 text-gray-700">
-                                <input
-                                    type="checkbox"
+                                            } catch (err) {
+                                                // ignore
+                                            }
+                                        }
+                                    }}
+                                    sx={{ width: 120 }}
+                                />
+                                <Typography variant="caption" color="text.secondary">Enter 7 digits to auto-fill</Typography>
+                            </Box>
+                            <TextField
+                                label="Full Address"
+                                fullWidth
+                                multiline
+                                rows={2}
+                                value={currentClient.Address}
+                                onChange={e => setCurrentClient({ ...currentClient, Address: e.target.value })}
+                            />
+                        </Box>
+
+                        <Box>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>Phone Number</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <TextField
+                                    size="small"
+                                    placeholder="03"
+                                    value={currentClient.ContactInfo ? currentClient.ContactInfo.split('-')[0] : ''}
+                                    onChange={e => {
+                                        const parts = (currentClient.ContactInfo || '').split('-');
+                                        while (parts.length < 3) parts.push('');
+                                        parts[0] = e.target.value;
+                                        setCurrentClient({ ...currentClient, ContactInfo: parts.join('-') });
+                                    }}
+                                    sx={{ width: '30%' }}
+                                    inputProps={{ style: { textAlign: 'center' } }}
+                                />
+                                <Typography>-</Typography>
+                                <TextField
+                                    size="small"
+                                    placeholder="0000"
+                                    value={currentClient.ContactInfo ? currentClient.ContactInfo.split('-')[1] || '' : ''}
+                                    onChange={e => {
+                                        const parts = (currentClient.ContactInfo || '').split('-');
+                                        while (parts.length < 3) parts.push('');
+                                        parts[1] = e.target.value;
+                                        setCurrentClient({ ...currentClient, ContactInfo: parts.join('-') });
+                                    }}
+                                    sx={{ width: '35%' }}
+                                    inputProps={{ style: { textAlign: 'center' } }}
+                                />
+                                <Typography>-</Typography>
+                                <TextField
+                                    size="small"
+                                    placeholder="0000"
+                                    value={currentClient.ContactInfo ? currentClient.ContactInfo.split('-')[2] || '' : ''}
+                                    onChange={e => {
+                                        const parts = (currentClient.ContactInfo || '').split('-');
+                                        while (parts.length < 3) parts.push('');
+                                        parts[2] = e.target.value;
+                                        setCurrentClient({ ...currentClient, ContactInfo: parts.join('-') });
+                                    }}
+                                    sx={{ width: '35%' }}
+                                    inputProps={{ style: { textAlign: 'center' } }}
+                                />
+                            </Box>
+                        </Box>
+
+                        <FormControlLabel
+                            control={
+                                <Checkbox
                                     checked={currentClient.IsActive}
                                     onChange={e => setCurrentClient({ ...currentClient, IsActive: e.target.checked })}
-                                    className="rounded text-indigo-600"
+                                    color="primary"
                                 />
-                                <span>Active Client</span>
-                            </label>
-                        </div>
-                        <div className="mt-6 flex justify-end gap-3">
-                            <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                            <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow">Save Client</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            <style>{`
-                .input-field {
-                    width: 100%;
-                    padding: 0.5rem;
-                    border-radius: 0.5rem;
-                    border: 1px solid #d1d5db;
-                    outline: none;
-                }
-                .input-field:focus {
-                    border-color: #6366f1;
-                    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-                }
-             `}</style>
-        </div>
+                            }
+                            label="Active Client"
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSave} variant="contained" color="primary">Save Client</Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
     );
 };
 

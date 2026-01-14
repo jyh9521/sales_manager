@@ -1,10 +1,22 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Invoice, invoiceService, InvoiceItem } from '../services/invoices';
 import { Client, clientService } from '../services/clients';
 import { Product, productService } from '../services/products';
 import { AppSettings, defaultSettings, settingsService } from '../services/settings';
 import { Unit, unitService } from '../services/units';
+import {
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+    Button, TextField, IconButton, MenuItem, Box, Typography,
+    Grid, InputAdornment, Autocomplete
+} from '@mui/material';
+import {
+    Add as AddIcon,
+    Delete as DeleteIcon,
+    Visibility as VisibilityIcon,
+    Search as SearchIcon,
+    Close as CloseIcon
+} from '@mui/icons-material';
 
 const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const { t } = useTranslation();
@@ -27,7 +39,6 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const [selectedClientId, setSelectedClientId] = useState<number | null>(filterClientId || null);
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
     const [items, setItems] = useState<InvoiceItem[]>([]);
-    const [focusedUnitRow, setFocusedUnitRow] = useState<number | null>(null);
 
     // Product Search
     const [searchTerm, setSearchTerm] = useState('');
@@ -41,7 +52,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     }, [filterClientId]);
 
     const loadData = async () => {
-        const [iData, cData, pData, sData] = await Promise.all([
+        const [iData, cData, pData, sData, uData] = await Promise.all([
             invoiceService.getAll(),
             clientService.getAll(),
             productService.getAll(),
@@ -55,7 +66,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setUnits(uData);
     };
 
-    const handleCreate = async () => {
+    const handleSave = async () => {
         if (!selectedClientId) {
             alert('Please select a client');
             return;
@@ -67,13 +78,15 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
         const total = items.reduce((sum, item) => sum + (item.UnitPrice * item.Quantity), 0);
 
-        await invoiceService.create({
-            ID: editingInvoice?.ID, // Pass ID for update
+        // Omit ID since database assigns it
+        const newInvoice: Omit<Invoice, 'ID'> = {
             ClientID: selectedClientId,
             InvoiceDate: invoiceDate,
             Items: items,
             TotalAmount: total
-        });
+        };
+
+        await invoiceService.create(newInvoice);
 
         setIsCreateMode(false);
         setEditingInvoice(null);
@@ -117,8 +130,6 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         const newItem: InvoiceItem = {
             ProductID: product?.ID || 0,
             ProductName: product?.Name || '',
-            Quantity: 1,
-            UnitPrice: product?.UnitPrice || 0,
             Quantity: 1,
             UnitPrice: product?.UnitPrice || 0,
             Project: product?.Project,
@@ -217,7 +228,6 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         return true;
     });
 
-    const calculateSubtotal = () => items.reduce((sum, item) => sum + (item.Quantity * item.UnitPrice), 0);
 
     const calculateTaxSummary = () => {
         const standardItems = items.filter(i => (i.TaxRate || 10) === 10);
@@ -413,7 +423,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
                         {/* Empty Rows Filler */}
                         {Array.from({ length: Math.max(0, 10 - invoice.Items.length - projects.length) }).map((_, i) => (
-                            <tr key={`empty-${i}`} className="text-center h-6">
+                            <tr key={`empty - ${i} `} className="text-center h-6">
                                 <td className="border border-blue-600"></td>
                                 <td className="border border-blue-600"></td>
                                 <td className="border border-blue-600"></td>
@@ -483,14 +493,14 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     <PrintView invoice={viewInvoice} />
                 </div>
                 <style>{`
-                    @media print {
-                        @page { size: A4; margin: 0; }
-                        body * { visibility: hidden; }
-                        .print-container, .print-container * { visibility: visible; }
-                        .print-container { position: absolute; left: 0; top: 0; width: 100%; min-height: 100%; box-shadow: none !important; margin: 0 !important; }
-                        .print-color-adjust { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    }
-                `}</style>
+@media print {
+    @page { size: A4; margin: 0; }
+    body * { visibility: hidden; }
+    .print-container, .print-container * { visibility: visible; }
+    .print-container { position: absolute; left: 0; top: 0; width: 100%; min-height: 100%; box-shadow: none !important; margin: 0 !important; }
+    .print-color-adjust { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+`}</style>
             </div>
         );
     }
@@ -498,285 +508,343 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     // Create Form
     if (isCreateMode) {
         return (
-            <div className="p-6 max-w-5xl mx-auto bg-white rounded-xl shadow border border-gray-100 min-h-[80vh]">
-                <div className="flex justify-between items-center mb-8 border-b pb-4">
-                    <h2 className="text-2xl font-bold">{editingInvoice ? `Edit Invoice #${String(editingInvoice.ID).padStart(8, '0')}` : 'Create New Invoice'}</h2>
-                    <button onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }} className="text-gray-500 hover:text-gray-700">Cancel</button>
-                </div>
+            <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1, minHeight: '80vh' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
+                    <Typography variant="h5" fontWeight="bold">
+                        {editingInvoice ? `Edit Invoice #${String(editingInvoice.ID).padStart(8, '0')} ` : 'Create New Invoice'}
+                    </Typography>
+                    <Button onClick={() => { setIsCreateMode(false); setEditingInvoice(null); }} color="inherit">
+                        Cancel
+                    </Button>
+                </Box>
 
-                <div className="grid grid-cols-2 gap-8 mb-8">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-                        <select
-                            className="w-full input-field"
+                <Grid container spacing={4} sx={{ mb: 4 }}>
+                    <Grid size={6}>
+                        <TextField
+                            select
+                            fullWidth
+                            label="Client"
                             value={selectedClientId || ''}
-                            onChange={e => {
+                            onChange={(e) => {
                                 setSelectedClientId(Number(e.target.value));
-                                setItems([]); // Clear items on client change
+                                setItems([]);
                             }}
+                            variant="outlined"
                         >
-                            <option value="">Select Client...</option>
+                            <MenuItem value=""><em>Select Client...</em></MenuItem>
                             {clients.filter(c => c.IsActive).map(c => (
-                                <option key={c.ID} value={c.ID}>{c.Name}</option>
+                                <MenuItem key={c.ID} value={c.ID}>{c.Name}</MenuItem>
                             ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <input
+                        </TextField>
+                    </Grid>
+                    <Grid size={6}>
+                        <TextField
                             type="date"
-                            className="w-full input-field"
+                            fullWidth
+                            label="Date"
+                            InputLabelProps={{ shrink: true }}
                             value={invoiceDate}
                             onChange={e => setInvoiceDate(e.target.value)}
+                            variant="outlined"
                         />
-                    </div>
-                </div>
+                    </Grid>
+                </Grid>
 
                 {/* Items Section */}
-                <div className="mb-8">
-                    <h3 className="font-semibold text-gray-700 mb-4">Line Items</h3>
-                    <table className="w-full text-left mb-4">
-                        <thead className="bg-gray-50 text-gray-600 text-sm">
-                            <tr>
-                                <th className="p-3 pl-4 w-32">Date</th>
-                                <th className="p-3 w-48">Product</th>
-                                <th className="p-3 w-24">Unit Price</th>
-                                <th className="p-3 w-16">Qty</th>
-                                <th className="p-3 w-20">Unit</th>
-                                <th className="p-3 w-24 text-right">Total</th>
-                                <th className="p-3">Remarks</th>
-                                <th className="p-3 w-12"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {items.map((item, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50/50">
-                                    <td className="p-2">
-                                        <input
-                                            type="date"
-                                            className="w-full bg-transparent outline-none text-sm text-gray-600 focus:text-gray-900 border-b border-transparent focus:border-indigo-300 transition-colors"
-                                            value={item.ItemDate}
-                                            onChange={e => updateItem(idx, 'ItemDate', e.target.value)}
-                                        />
-                                    </td>
-                                    <td className="p-2">
-                                        <input
-                                            className="w-full bg-transparent outline-none border-b border-transparent focus:border-indigo-300 transition-colors font-medium text-gray-800"
-                                            value={item.ProductName}
-                                            onChange={e => updateItem(idx, 'ProductName', e.target.value)}
-                                            placeholder="Product Name"
-                                        />
-                                    </td>
-                                    <td className="p-2">
-                                        <input
-                                            type="number"
-                                            className="w-full bg-transparent outline-none text-right"
-                                            value={item.UnitPrice}
-                                            onChange={e => updateItem(idx, 'UnitPrice', Number(e.target.value))}
-                                        />
-                                    </td>
-                                    <td className="p-2">
-                                        <input
-                                            type="number"
-                                            className="w-full bg-transparent outline-none text-center font-bold text-gray-800"
-                                            value={item.Quantity}
-                                            onChange={e => updateItem(idx, 'Quantity', Number(e.target.value))}
-                                        />
-                                    </td>
-                                    <td className="p-2 relative">
-                                        <input
-                                            className="w-full bg-transparent outline-none border-b border-transparent focus:border-indigo-300 text-center"
-                                            value={item.Unit || ''}
-                                            onChange={e => updateItem(idx, 'Unit', e.target.value)}
-                                            onFocus={() => setFocusedUnitRow(idx)}
-                                            onBlur={() => setTimeout(() => setFocusedUnitRow(null), 200)}
-                                            placeholder="-"
-                                        />
-                                        {/* Unit Dropdown */}
-                                        {focusedUnitRow === idx && (
-                                            <div className="absolute top-full left-0 w-full min-w-[100px] bg-white border border-gray-200 shadow-lg rounded z-20 max-h-40 overflow-auto">
-                                                {units.map(u => (
-                                                    <div
-                                                        key={u.ID}
-                                                        className="px-3 py-1.5 hover:bg-indigo-50 cursor-pointer text-sm text-center"
-                                                        onClick={() => {
-                                                            updateItem(idx, 'Unit', u.Name);
-                                                            setFocusedUnitRow(null);
-                                                        }}
-                                                    >
-                                                        {u.Name}
-                                                    </div>
-                                                ))}
-                                                {units.length === 0 && <div className="px-3 py-2 text-xs text-gray-400 text-center">Type to add...</div>}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="p-2 text-right font-mono text-gray-700">
-                                        ¥{(item.Quantity * item.UnitPrice).toLocaleString()}
-                                    </td>
-                                    <td className="p-2">
-                                        <input
-                                            className="w-full bg-transparent outline-none border-b border-transparent focus:border-indigo-300 text-sm text-gray-500 italic"
-                                            value={item.Remarks || ''}
-                                            onChange={e => updateItem(idx, 'Remarks', e.target.value)}
-                                            placeholder="Memo"
-                                        />
-                                    </td>
-                                    <td className="p-2 text-center">
-                                        <button onClick={() => removeItem(idx)} className="text-red-300 hover:text-red-500 transition-colors">×</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <Box sx={{ mb: 4 }}>
+                    <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>Line Items</Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                        <Table size="small">
+                            <TableHead sx={{ bgcolor: 'grey.50' }}>
+                                <TableRow>
+                                    <TableCell width="120">Date</TableCell>
+                                    <TableCell width="250">Product</TableCell>
+                                    <TableCell width="100">Unit Price</TableCell>
+                                    <TableCell width="80">Qty</TableCell>
+                                    <TableCell width="100">Unit</TableCell>
+                                    <TableCell align="right" width="120">Total</TableCell>
+                                    <TableCell>Remarks</TableCell>
+                                    <TableCell width="50"></TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {items.map((item, idx) => (
+                                    <TableRow key={idx}>
+                                        <TableCell>
+                                            <TextField
+                                                type="date"
+                                                fullWidth
+                                                variant="standard"
+                                                InputProps={{ disableUnderline: true }}
+                                                value={item.ItemDate}
+                                                onChange={e => updateItem(idx, 'ItemDate', e.target.value)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <TextField
+                                                fullWidth
+                                                variant="standard"
+                                                placeholder="Product Name"
+                                                InputProps={{ disableUnderline: true }}
+                                                value={item.ProductName}
+                                                onChange={e => updateItem(idx, 'ProductName', e.target.value)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <TextField
+                                                type="number"
+                                                fullWidth
+                                                variant="standard"
+                                                InputProps={{ disableUnderline: true }}
+                                                inputProps={{ style: { textAlign: 'right' } }}
+                                                value={item.UnitPrice}
+                                                onChange={e => updateItem(idx, 'UnitPrice', Number(e.target.value))}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <TextField
+                                                type="number"
+                                                fullWidth
+                                                variant="standard"
+                                                InputProps={{ disableUnderline: true }}
+                                                inputProps={{ style: { textAlign: 'center', fontWeight: 'bold' } }}
+                                                value={item.Quantity}
+                                                onChange={e => updateItem(idx, 'Quantity', Number(e.target.value))}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Autocomplete
+                                                freeSolo
+                                                options={units.map((u) => u.Name)}
+                                                value={item.Unit || ''}
+                                                onInputChange={(_, newValue) => updateItem(idx, 'Unit', newValue)}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                        {...params}
+                                                        variant="standard"
+                                                        placeholder="-"
+                                                        InputProps={{ ...params.InputProps, disableUnderline: true }}
+                                                    />
+                                                )}
+                                            />
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
+                                            ¥{(item.Quantity * item.UnitPrice).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            <TextField
+                                                fullWidth
+                                                variant="standard"
+                                                placeholder="Memo"
+                                                InputProps={{ disableUnderline: true }}
+                                                value={item.Remarks || ''}
+                                                onChange={e => updateItem(idx, 'Remarks', e.target.value)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <IconButton size="small" color="error" onClick={() => removeItem(idx)}>
+                                                <CloseIcon fontSize="small" />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
 
                     {/* Add Item Row with Search */}
-                    <div className="bg-gray-50 p-4 rounded-lg flex gap-4 items-center border border-gray-200 border-dashed">
-                        <div className="flex-1 relative">
-                            <input
-                                placeholder="Search product to add..."
-                                className="w-full p-2 pl-8 rounded border border-gray-300 focus:border-indigo-500 outline-none"
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                disabled={!selectedClientId}
-                            />
-                            <span className="absolute left-2.5 top-2.5 text-gray-400">🔍</span>
-
-                            {/* Autocomplete Dropdown */}
-                            {searchTerm && (
-                                <div className="absolute top-full left-0 w-full bg-white shadow-lg rounded-b-lg border border-gray-200 mt-1 max-h-60 overflow-y-auto z-10">
-                                    {availableProducts.map(p => (
-                                        <div
-                                            key={p.ID}
-                                            className="p-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center bg-white"
-                                            onClick={() => addItem(p)}
-                                        >
-                                            <div>
-                                                <div className="font-medium text-gray-800">{p.Name}</div>
-                                                <div className="text-xs text-gray-400">{p.Code}</div>
-                                            </div>
-                                            <div className="text-emerald-600 font-mono">¥{p.UnitPrice.toLocaleString()}</div>
+                    <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px dashed', borderColor: 'grey.300', display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ position: 'relative', flex: 1 }}>
+                            <Autocomplete
+                                freeSolo
+                                options={availableProducts}
+                                getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code})`}
+                                onChange={(_, newValue) => {
+                                    if (typeof newValue !== 'string' && newValue) {
+                                        addItem(newValue);
+                                    }
+                                }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        placeholder="Search product to add..."
+                                        size="small"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <SearchIcon color="action" />
+                                                </InputAdornment>
+                                            ),
+                                        }}
+                                        disabled={!selectedClientId}
+                                    />
+                                )}
+                                renderOption={(props, option) => (
+                                    <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <div>
+                                            <Typography variant="body2" color="text.primary">{option.Name}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{option.Code}</Typography>
                                         </div>
-                                    ))}
-                                    {availableProducts.length === 0 && (
-                                        <div className="p-3 text-gray-400 text-center text-sm">No matching products found</div>
-                                    )}
-                                    <div className="p-2 border-t bg-gray-50 text-center">
-                                        <button onClick={() => addItem()} className="text-xs text-indigo-600 font-bold hover:underline">
-                                            + Add Empty Row
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                            Type text to search products bound to this client.
-                        </div>
-                    </div>
-                </div>
+                                        <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
+                                            ¥{option.UnitPrice.toLocaleString()}
+                                        </Typography>
+                                    </li>
+                                )}
+                            />
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                            Or <Button size="small" onClick={() => addItem()}>Add Empty Row</Button>
+                        </Typography>
+                    </Box>
+                </Box>
 
-                <div className="flex justify-end pt-6 border-t">
-                    <div className="w-64 space-y-3">
-                        <div className="flex justify-between text-gray-600">
-                            <span>Subtotal</span>
-                            <span>¥{calculateTaxSummary().subtotal.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-600">
-                            <span>Tax (Total)</span>
-                            <span>¥{calculateTaxSummary().totalTax.toLocaleString()}</span>
-                        </div>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 3, borderTop: 1, borderColor: 'divider' }}>
+                    <Box sx={{ width: 300 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
+                            <Typography>Subtotal</Typography>
+                            <Typography>¥{calculateTaxSummary().subtotal.toLocaleString()}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, color: 'text.secondary' }}>
+                            <Typography>Tax (Total)</Typography>
+                            <Typography>¥{calculateTaxSummary().totalTax.toLocaleString()}</Typography>
+                        </Box>
                         {calculateTaxSummary().reducedSubtotal > 0 && (
-                            <div className="text-xs text-right text-gray-500">
+                            <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mb: 1, color: 'text.disabled' }}>
                                 (Standard: ¥{calculateTaxSummary().standardTax}, Reduced: ¥{calculateTaxSummary().reducedTax})
-                            </div>
+                            </Typography>
                         )}
-                        <div className="flex justify-between text-xl font-bold text-gray-800 pt-3 border-t">
-                            <span>Total</span>
-                            <span>¥{calculateTotal().toLocaleString()}</span>
-                        </div>
-                        <button onClick={handleCreate} className="w-full bg-black text-white py-3 rounded-lg font-bold mt-4 hover:shadow-lg transition-all">
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: 1, borderColor: 'divider', mb: 2 }}>
+                            <Typography variant="h6" fontWeight="bold">Total</Typography>
+                            <Typography variant="h6" fontWeight="bold">¥{calculateTotal().toLocaleString()}</Typography>
+                        </Box>
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            color="primary"
+                            size="large"
+                            onClick={handleSave}
+                            sx={{ mt: 2 }}
+                        >
                             Save Invoice
-                        </button>
-                    </div>
-                </div>
-            </div>
+                        </Button>
+                    </Box>
+                </Box>
+            </Box>
         );
     }
 
     // List View
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-2xl font-bold text-gray-800">{t('invoices', 'Invoices')}</h2>
-                    <input
+        <Box sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                        {t('invoices', 'Invoices')}
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => {
+                            setIsCreateMode(true);
+                            setItems([]);
+                            setEditingInvoice(null);
+                        }}
+                    >
+                        New Invoice
+                    </Button>
+                    <TextField
                         type="month"
+                        variant="outlined"
+                        size="small"
                         value={monthFilter}
                         onChange={e => setMonthFilter(e.target.value)}
-                        className="p-2 rounded border border-gray-300 outline-none focus:border-indigo-500"
+                        sx={{ bgcolor: 'background.paper' }}
                     />
-                </div>
-                <button
+                </Box>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<AddIcon />}
                     onClick={() => setIsCreateMode(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow transition-colors flex items-center gap-2"
                 >
-                    <span>+</span> {t('new_invoice', 'New Invoice')}
-                </button>
-            </div>
+                    {t('new_invoice', 'New Invoice')}
+                </Button>
+            </Box>
 
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-6 py-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('InvoiceDate')}>
+            <TableContainer component={Paper} elevation={1}>
+                <Table sx={{ minWidth: 650 }} aria-label="invoice table">
+                    <TableHead sx={{ bgcolor: 'grey.50' }}>
+                        <TableRow>
+                            <TableCell onClick={() => handleSort('InvoiceDate')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
                                 Date {sortConfig.key === 'InvoiceDate' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                            </th>
-                            <th className="px-6 py-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('ID')}>
+                            </TableCell>
+                            <TableCell onClick={() => handleSort('ID')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
                                 ID {sortConfig.key === 'ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                            </th>
+                            </TableCell>
                             {!filterClientId && (
-                                <th className="px-6 py-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('ClientName')}>
+                                <TableCell onClick={() => handleSort('ClientName')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
                                     Client {sortConfig.key === 'ClientName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                </th>
+                                </TableCell>
                             )}
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-right cursor-pointer hover:bg-gray-100" onClick={() => handleSort('TotalAmount')}>
+                            <TableCell align="right" onClick={() => handleSort('TotalAmount')} sx={{ cursor: 'pointer', fontWeight: 'bold' }}>
                                 Amount {sortConfig.key === 'TotalAmount' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                            </th>
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {sortedInvoices.map(invoice => (
-                            <tr key={invoice.ID} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setViewInvoice(invoice)}>
-                                <td className="px-6 py-4 text-gray-500 font-mono text-sm">
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {sortedInvoices.map((invoice) => (
+                            <TableRow
+                                key={invoice.ID}
+                                hover
+                                onClick={() => setViewInvoice(invoice)}
+                                sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
+                            >
+                                <TableCell component="th" scope="row" sx={{ fontFamily: 'monospace' }}>
                                     {new Date(invoice.InvoiceDate).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 text-gray-400 text-xs">#{String(invoice.ID).padStart(8, '0')}</td>
+                                </TableCell>
+                                <TableCell sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                                    #{String(invoice.ID).padStart(8, '0')}
+                                </TableCell>
                                 {!filterClientId && (
-                                    <td className="px-6 py-4 font-medium text-gray-800">
+                                    <TableCell sx={{ fontWeight: 500 }}>
                                         {clients.find(c => c.ID === invoice.ClientID)?.Name || 'Unknown'}
-                                    </td>
+                                    </TableCell>
                                 )}
-                                <td className="px-6 py-4 text-gray-800 font-bold text-right">
+                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                                     ¥{invoice.TotalAmount.toLocaleString()}
-                                </td>
-                                <td className="px-6 py-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => setViewInvoice(invoice)} className="text-blue-600 hover:text-blue-800 font-medium text-sm">View</button>
-                                    <button onClick={() => handleDelete(invoice.ID)} className="text-red-500 hover:text-red-700 font-medium text-sm">Delete</button>
-                                </td>
-                            </tr>
+                                </TableCell>
+                                <TableCell align="right">
+                                    <Button
+                                        size="small"
+                                        startIcon={<VisibilityIcon />}
+                                        onClick={(e) => { e.stopPropagation(); setViewInvoice(invoice); }}
+                                        sx={{ mr: 1 }}
+                                    >
+                                        View
+                                    </Button>
+                                    <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(invoice.ID); }}
+                                    >
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </TableCell>
+                            </TableRow>
                         ))}
                         {sortedInvoices.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="p-8 text-center text-gray-400">
+                            <TableRow>
+                                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                                     No invoices found.
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </Box>
     );
 };
 

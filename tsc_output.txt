@@ -1,0 +1,31 @@
+electron/main.ts(111,38): error TS6133: 'event' is declared but its value is never read.
+electron/main.ts(121,41): error TS6133: 'event' is declared but its value is never read.
+electron/main.ts(130,41): error TS6133: 'event' is declared but its value is never read.
+electron/main.ts(153,44): error TS6133: 'event' is declared but its value is never read.
+electron/main.ts(155,10): error TS18046: 'invoice' is of type 'unknown'.
+electron/main.ts(162,17): error TS18046: 'invoice' is of type 'unknown'.
+electron/main.ts(165,41): error TS6133: 'event' is declared but its value is never read.
+electron/main.ts(195,21): error TS18046: 'res' is of type 'unknown'.
+src/pages/Clients.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/Clients.tsx(8,56): error TS6133: 'IconButton' is declared but its value is never read.
+src/pages/Clients.tsx(8,68): error TS6133: 'InputAdornment' is declared but its value is never read.
+src/pages/Clients.tsx(15,15): error TS6133: 'SearchIcon' is declared but its value is never read.
+src/pages/Clients.tsx(16,14): error TS6133: 'CloseIcon' is declared but its value is never read.
+src/pages/Invoices.tsx(1,38): error TS6133: 'useRef' is declared but its value is never read.
+src/pages/Invoices.tsx(10,36): error TS6133: 'Select' is declared but its value is never read.
+src/pages/Invoices.tsx(10,54): error TS6133: 'FormControl' is declared but its value is never read.
+src/pages/Invoices.tsx(10,67): error TS6133: 'InputLabel' is declared but its value is never read.
+src/pages/Invoices.tsx(11,5): error TS6133: 'Dialog' is declared but its value is never read.
+src/pages/Invoices.tsx(11,13): error TS6133: 'DialogContent' is declared but its value is never read.
+src/pages/Invoices.tsx(11,28): error TS6133: 'DialogActions' is declared but its value is never read.
+src/pages/Invoices.tsx(13,34): error TS6133: 'EditIcon' is declared but its value is never read.
+src/pages/Invoices.tsx(13,105): error TS6133: 'PrintIcon' is declared but its value is never read.
+src/pages/Invoices.tsx(36,12): error TS6133: 'focusedUnitRow' is declared but its value is never read.
+src/pages/Invoices.tsx(36,28): error TS6133: 'setFocusedUnitRow' is declared but its value is never read.
+src/pages/Invoices.tsx(61,18): error TS2552: Cannot find name 'uData'. Did you mean 'iData'?
+src/pages/Invoices.tsx(77,13): error TS2353: Object literal may only specify known properties, and 'ID' does not exist in type 'Omit<Invoice, "ID" | "ClientName">'.
+src/pages/Invoices.tsx(128,13): error TS1117: An object literal cannot have multiple properties with the same name.
+src/pages/Invoices.tsx(129,13): error TS1117: An object literal cannot have multiple properties with the same name.
+src/pages/Invoices.tsx(226,11): error TS6133: 'calculateSubtotal' is declared but its value is never read.
+src/pages/Login.tsx(10,11): error TS6133: 't' is declared but its value is never read.
+src/pages/Settings.tsx(1,8): error TS6133: 'React' is declared but its value is never read.

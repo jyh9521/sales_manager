@@ -1,0 +1,10 @@
+src/pages/Invoices.tsx(11,5): error TS6133: 'Dialog' is declared but its value is never read.
+src/pages/Invoices.tsx(11,13): error TS6133: 'DialogContent' is declared but its value is never read.
+src/pages/Invoices.tsx(11,28): error TS6133: 'DialogActions' is declared but its value is never read.
+src/pages/Invoices.tsx(15,13): error TS6133: 'EditIcon' is declared but its value is never read.
+src/pages/Invoices.tsx(20,14): error TS6133: 'PrintIcon' is declared but its value is never read.
+src/pages/Invoices.tsx(44,12): error TS6133: 'focusedUnitRow' is declared but its value is never read.
+src/pages/Invoices.tsx(44,28): error TS6133: 'setFocusedUnitRow' is declared but its value is never read.
+src/pages/Invoices.tsx(234,11): error TS6133: 'calculateSubtotal' is declared but its value is never read.
+src/pages/Login.tsx(10,11): error TS6133: 't' is declared but its value is never read.
+src/pages/Settings.tsx(1,8): error TS6133: 'React' is declared but its value is never read.

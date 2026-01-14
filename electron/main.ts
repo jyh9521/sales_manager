@@ -108,7 +108,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle('units-add', async (event, name) => {
+  ipcMain.handle('units-add', async (_event, name) => {
     try {
       await connection.execute(`INSERT INTO Units (Name) VALUES ('${name}')`);
       return { success: true };
@@ -118,7 +118,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle('units-delete', async (event, id) => {
+  ipcMain.handle('units-delete', async (_event, id) => {
     try {
       await connection.execute(`DELETE FROM Units WHERE ID = ${id}`);
       return { success: true };
@@ -127,7 +127,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle('units-rename', async (event, id, newName) => {
+  ipcMain.handle('units-rename', async (_event, id, newName) => {
     try {
       await connection.execute(`UPDATE Units SET Name = '${newName}' WHERE ID = ${id}`);
       return { success: true };
@@ -150,9 +150,8 @@ app.whenReady().then(async () => {
     return await connection.query(sql);
   });
 
-  ipcMain.handle('invoices-getOne', async (event, id) => {
-    const invoice = await connection.query(`SELECT * FROM Invoices WHERE ID = ${id}`);
-    if (!invoice.length) return null;
+  ipcMain.handle('invoices-getOne', async (_event, id) => {
+    const invoice = await connection.query(`SELECT * FROM Invoices WHERE ID = ${id}`) as any[];
     const items = await connection.query(`
             SELECT InvoiceItems.*, Products.Name as ProductName, Products.Code as ProductCode 
             FROM InvoiceItems 
@@ -162,7 +161,7 @@ app.whenReady().then(async () => {
     return { ...invoice[0], Items: items };
   });
 
-  ipcMain.handle('save-invoice', async (event, invoice) => {
+  ipcMain.handle('save-invoice', async (_event, invoice: any) => {
     try {
       let invoiceID = invoice.ID;
 
@@ -191,7 +190,7 @@ app.whenReady().then(async () => {
                     VALUES (${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : 'NULL'}, ${invoice.TotalAmount}, '${invoice.ExampleField || ''}')
                 `);
         // Get last ID
-        const res = await connection.query('SELECT @@IDENTITY AS id');
+        const res = await connection.query('SELECT @@IDENTITY AS id') as any[];
         invoiceID = res[0].id;
       }
 

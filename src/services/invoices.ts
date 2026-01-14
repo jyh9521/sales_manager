@@ -10,6 +10,7 @@ export interface InvoiceItem {
     ItemDate?: string; // Date string YYYY-MM-DD
     Remarks?: string;
     Project?: string;
+    TaxRate?: number;
 
     // UI Helpers
     ProductName?: string;
