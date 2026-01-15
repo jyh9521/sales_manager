@@ -629,38 +629,6 @@ const Estimates = () => {
                                 </Grid>
                             </Grid>
 
-                            <Box sx={{ mb: 3 }}>
-                                <Autocomplete
-                                    freeSolo
-                                    options={products.filter(p => p.Name.toLowerCase().includes(searchTerm.toLowerCase()))}
-                                    getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code || '-'})`}
-                                    onInputChange={(_, val) => setSearchTerm(val)}
-                                    onChange={(_, val) => typeof val !== 'string' && val && addItem(val)}
-                                    renderOption={(props, option) => (
-                                        <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px' }}>
-                                            <div>
-                                                <Typography variant="body2" color="text.primary">{option.Name}</Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {option.Code} | {t('common.stock_display', { stock: option.Stock })}
-                                                </Typography>
-                                            </div>
-                                            <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
-                                                ¥{option.UnitPrice.toLocaleString()}
-                                            </Typography>
-                                        </li>
-                                    )}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label={t('products_search_placeholder', 'Search Product')}
-                                            fullWidth
-                                            placeholder={t('common.search_hint')}
-                                            InputProps={{ ...params.InputProps, startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> }}
-                                        />
-                                    )}
-                                />
-                            </Box>
-
                             <TableContainer component={Paper} variant="outlined" sx={{ mb: 4, borderRadius: 1 }}>
                                 <Table size="small">
                                     <TableHead sx={{ bgcolor: 'grey.50' }}>
@@ -732,6 +700,62 @@ const Estimates = () => {
                                     </TableBody>
                                 </Table>
                             </TableContainer>
+
+                            <Box sx={{ mb: 4, display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <Box sx={{ flexGrow: 1 }}>
+                                    <Autocomplete
+                                        freeSolo
+                                        value={null}
+                                        options={products.filter(p => p.Name.toLowerCase().includes(searchTerm.toLowerCase()))}
+                                        inputValue={searchTerm}
+                                        getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code || '-'})`}
+                                        onInputChange={(_, val) => setSearchTerm(val)}
+                                        onChange={(_, val) => {
+                                            if (typeof val !== 'string' && val) {
+                                                addItem(val);
+                                                setSearchTerm('');
+                                            }
+                                        }}
+                                        renderOption={(props, option) => (
+                                            <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px' }}>
+                                                <div>
+                                                    <Typography variant="body2" color="text.primary">{option.Name}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {option.Code} | {t('common.stock_display', { stock: option.Stock })}
+                                                    </Typography>
+                                                </div>
+                                                <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
+                                                    ¥{option.UnitPrice.toLocaleString()}
+                                                </Typography>
+                                            </li>
+                                        )}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label={t('products_search_placeholder', 'Search Product')}
+                                                fullWidth
+                                                placeholder={t('common.search_hint')}
+                                                InputProps={{ ...params.InputProps, startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> }}
+                                            />
+                                        )}
+                                    />
+                                </Box>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<AddIcon />}
+                                    onClick={() => addItem({
+                                        ID: 0,
+                                        Name: '',
+                                        Code: '',
+                                        UnitPrice: 0,
+                                        Stock: 0,
+                                        IsActive: true
+                                    } as any)}
+                                    sx={{ whiteSpace: 'nowrap', height: 40 }}
+                                >
+                                    {t('common.add_line', 'Add Line')}
+                                </Button>
+                            </Box>
 
                             <Grid container spacing={4}>
                                 <Grid size={{ xs: 12, md: 7 }}>

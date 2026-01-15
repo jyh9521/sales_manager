@@ -1,0 +1,17 @@
+appId: com.salesmanager.app
+productName: Sales Manager
+directories:
+  output: release/${version}
+asar: false
+# files:
+#   - dist-electron/**/*
+#   - dist/**/*
+#   - package.json
+#   - node_modules/**/*
+# win:
+#   target: nsis
+#   icon: resources/icon.ico
+# nsis:
+#   oneClick: false
+#   allowToChangeInstallationDirectory: true
+#   shortcutName: Sales Manager

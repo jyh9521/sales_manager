@@ -17,8 +17,10 @@ import {
     Search as SearchIcon,
     Print as PrintIcon,
     Edit as EditIcon,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
+    ArrowDropDown as ArrowDropDownIcon
 } from '@mui/icons-material';
+import { ButtonGroup, Menu } from '@mui/material';
 import { Snackbar, Alert } from '@mui/material';
 import ConfirmDialog from '../components/ConfirmDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -35,6 +37,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
     const [units, setUnits] = useState<Unit[]>([]);
     const [loading, setLoading] = useState(true);
+    const [saveMenuAnchorEl, setSaveMenuAnchorEl] = useState<null | HTMLElement>(null);
 
     // 筛选
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
@@ -182,7 +185,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const handleSave = async (action: 'create' | 'update') => {
         console.log('=== FRONTEND: handleSave called ===', { action, manualId, selectedClientId });
         if (!selectedClientId) {
-            showToast('Please select a client', 'error');
+            showToast(t('validation.client_required', 'Please select a client'), 'error');
             return;
         }
         if (items.length === 0) {
@@ -1109,17 +1112,54 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                 >
                                     {t('common.cancel')}
                                 </Button>
-                                <Button
-                                    disabled={isSaving}
-                                    onClick={() => handleSave(editingInvoice ? 'update' : 'create')}
-                                    variant="contained"
-                                    color="primary"
-                                    size="large"
-                                    startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : null}
-                                    sx={{ px: 4, fontWeight: 'bold' }}
+                                <ButtonGroup variant="contained" ref={(node) => { if (node) {/* ref logic if needed */ } }} aria-label="split button">
+                                    <Button
+                                        disabled={isSaving}
+                                        onClick={() => handleSave(editingInvoice ? 'update' : 'create')}
+                                        startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : null}
+                                        sx={{ px: 3, fontWeight: 'bold' }}
+                                    >
+                                        {t('common.save')}
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        aria-controls={Boolean(saveMenuAnchorEl) ? 'split-button-menu' : undefined}
+                                        aria-expanded={Boolean(saveMenuAnchorEl) ? 'true' : undefined}
+                                        aria-label="select merge strategy"
+                                        aria-haspopup="menu"
+                                        disabled={isSaving}
+                                        onClick={(event) => setSaveMenuAnchorEl(event.currentTarget)}
+                                    >
+                                        <ArrowDropDownIcon />
+                                    </Button>
+                                </ButtonGroup>
+                                <Menu
+                                    id="split-button-menu"
+                                    anchorEl={saveMenuAnchorEl}
+                                    open={Boolean(saveMenuAnchorEl)}
+                                    onClose={() => setSaveMenuAnchorEl(null)}
+                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                                 >
-                                    {t('common.save')}
-                                </Button>
+                                    <MenuItem
+                                        onClick={() => {
+                                            handleSave(editingInvoice ? 'update' : 'create');
+                                            setSaveMenuAnchorEl(null);
+                                        }}
+                                    >
+                                        {t('common.save', 'Save')} ({editingInvoice ? t('common.overwrite', 'Overwrite') : t('common.create_new', 'New')})
+                                    </MenuItem>
+                                    {editingInvoice && (
+                                        <MenuItem
+                                            onClick={() => {
+                                                handleSave('create');
+                                                setSaveMenuAnchorEl(null);
+                                            }}
+                                        >
+                                            {t('common.save_as_new', 'Save as New')}
+                                        </MenuItem>
+                                    )}
+                                </Menu>
                             </Box>
                         </Box>
 
@@ -1293,9 +1333,15 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                     <Box sx={{ flexGrow: 1 }}>
                                         <Autocomplete
                                             freeSolo
+                                            value={null}
                                             options={availableProducts}
+                                            inputValue={searchTerm}
                                             getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code || '-'})`}
-                                            onInputChange={(_, value) => setSearchTerm(value)}
+                                            onInputChange={(_, newInputValue, reason) => {
+                                                if (reason !== 'reset') {
+                                                    setSearchTerm(newInputValue);
+                                                }
+                                            }}
                                             onChange={(_, newValue) => {
                                                 if (typeof newValue !== 'string' && newValue) {
                                                     addItem(newValue);
@@ -1382,20 +1428,6 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                                 </Typography>
                                             </Box>
                                         </Box>
-                                        {editingInvoice && (
-                                            <Button
-                                                fullWidth
-                                                variant="outlined"
-                                                color="primary"
-                                                size="large"
-                                                sx={{ mt: 2 }}
-                                                onClick={() => handleSave('create')}
-                                                disabled={isSaving}
-                                                startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : null}
-                                            >
-                                                {t('common.save_as_new')}
-                                            </Button>
-                                        )}
                                     </Grid>
                                 </Grid>
                             </Paper>
@@ -1418,12 +1450,17 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                                             setConfirmDialog({
                                                 open: true,
                                                 title: t('common.delete', 'Delete Unit'),
-                                                message: `Delete unit "${u.Name}"?`,
+                                                message: t('common.delete_confirm', { item: u.Name }),
                                                 onConfirm: async () => {
-                                                    await unitService.delete(u.ID);
-                                                    const updated = await unitService.getAll();
-                                                    setUnits(updated);
-                                                    setConfirmDialog(p => ({ ...p, open: false }));
+                                                    setIsDeleting(true);
+                                                    try {
+                                                        await unitService.delete(u.ID);
+                                                        const updated = await unitService.getAll();
+                                                        setUnits(updated);
+                                                        setConfirmDialog(p => ({ ...p, open: false }));
+                                                    } finally {
+                                                        setIsDeleting(false);
+                                                    }
                                                 }
                                             });
                                         }}>
