@@ -26,6 +26,7 @@ export interface Invoice {
     TotalAmount: number;
     Status: 'Unpaid' | 'Paid' | 'Sent';
     Items: InvoiceItem[];
+    Remarks?: string;
 }
 
 export const invoiceService = {
@@ -34,7 +35,7 @@ export const invoiceService = {
         // 注意：Access SQL 语法对于 limit/offset 或标准连接是标准的。
         // 我们按 ID 倒序排列以优先显示最新的。
         const sql = `
-            SELECT Invoices.ID, Invoices.ClientID, Invoices.InvoiceDate, Invoices.DueDate, Invoices.TotalAmount, Invoices.Status, Invoices.Items, Clients.Name as ClientName
+            SELECT Invoices.*, Clients.Name as ClientName
             FROM Invoices
             LEFT JOIN Clients ON Invoices.ClientID = Clients.ID
             ORDER BY Invoices.ID DESC
@@ -50,7 +51,8 @@ export const invoiceService = {
                 DueDate: r.DueDate,
                 TotalAmount: r.TotalAmount,
                 Status: r.Status || 'Unpaid',
-                Items: r.Items ? JSON.parse(r.Items) : [] // 如果可用，解析 JSON 项目
+                Items: r.Items ? JSON.parse(r.Items) : [], // 如果可用，解析 JSON 项目
+                Remarks: r.Remarks || ''
             }));
         } catch (e) {
             console.error("Error fetching invoices:", e);

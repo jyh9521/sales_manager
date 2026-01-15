@@ -8,7 +8,7 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Dialog, DialogTitle, DialogContent, DialogActions, Chip,
     InputAdornment, IconButton, Autocomplete, RadioGroup, Radio, TablePagination,
-    Grid, List, ListItem, ListItemText, ListItemSecondaryAction, Snackbar, Alert, Card, CardContent, CardActions
+    Grid, List, ListItem, ListItemText, ListItemSecondaryAction, Snackbar, Alert, Card, CardContent, CardActions, CircularProgress
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -38,6 +38,11 @@ const Products = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showInactive, setShowInactive] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Product, direction: 'asc' | 'desc' } | null>(null);
+
+    // 批量操作状态
+    const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // 分页状态
     const [page, setPage] = useState(0);
@@ -128,6 +133,28 @@ const Products = () => {
         setSortConfig({ key, direction });
     };
 
+    const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.checked) {
+            const newSelecteds = new Set(selectedProductIds);
+            visibleProducts.forEach(n => newSelecteds.add(n.ID));
+            setSelectedProductIds(newSelecteds);
+        } else {
+            const newSelecteds = new Set(selectedProductIds);
+            visibleProducts.forEach(n => newSelecteds.delete(n.ID));
+            setSelectedProductIds(newSelecteds);
+        }
+    };
+
+    const handleSelect = (id: number) => {
+        const newSelecteds = new Set(selectedProductIds);
+        if (newSelecteds.has(id)) {
+            newSelecteds.delete(id);
+        } else {
+            newSelecteds.add(id);
+        }
+        setSelectedProductIds(newSelecteds);
+    };
+
     const handleRenameProject = async (id: number, oldName: string) => {
         if (!editingProject || !editingProject.name) return;
         try {
@@ -181,9 +208,11 @@ const Products = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isModalOpen, currentProduct, codePrefix, codeNumber, savedProjects]);
 
-    const handleSave = async () => {
+    const handleSave = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!validate()) return;
 
+        setIsSaving(true);
         const finalCode = (codePrefix && codeNumber) ? `${codePrefix}-${codeNumber}` : (codePrefix || codeNumber || '');
         const productToSave = { ...currentProduct, Code: finalCode };
 
@@ -203,7 +232,35 @@ const Products = () => {
             loadData();
         } catch (e) {
             showToast(t('products_save_failed', 'Failed to save: ') + e, 'error');
+        } finally {
+            setIsSaving(false);
         }
+    };
+
+    const handleBulkDelete = () => {
+        setConfirmDialog({
+            open: true,
+            title: t('common.bulk_delete_confirm_title', 'Bulk Delete'),
+            message: t('common.bulk_delete_confirm_msg', 'Are you sure you want to delete the selected items?'),
+            onConfirm: async () => {
+                setIsDeleting(true);
+                try {
+                    const ids = Array.from(selectedProductIds);
+                    for (const id of ids) {
+                        await productService.delete(id);
+                    }
+                    setSelectedProductIds(new Set());
+                    setConfirmDialog(p => ({ ...p, open: false }));
+                    showToast(t('products_bulk_deleted', 'Selected products deleted'));
+                    loadData();
+                } catch (e) {
+                    console.error(e);
+                    showToast(t('common.error'), 'error');
+                } finally {
+                    setIsDeleting(false);
+                }
+            }
+        });
     };
 
     const handleDelete = (id: number) => {
@@ -295,6 +352,17 @@ const Products = () => {
                     </Typography>
 
                     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        {selectedProductIds.size > 0 && (
+                            <Button
+                                variant="contained"
+                                color="error"
+                                startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
+                                disabled={isDeleting}
+                                onClick={handleBulkDelete}
+                            >
+                                {t('common.delete')} ({selectedProductIds.size})
+                            </Button>
+                        )}
                         <TextField
                             size="small"
                             placeholder={t('products_search_placeholder', 'Search products...')}
@@ -391,6 +459,14 @@ const Products = () => {
                     <Table>
                         <TableHead sx={{ bgcolor: 'grey.50' }}>
                             <TableRow>
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        indeterminate={visibleProducts.length > 0 && Array.from(visibleProducts).some(p => selectedProductIds.has(p.ID)) && !visibleProducts.every(p => selectedProductIds.has(p.ID))}
+                                        checked={visibleProducts.length > 0 && visibleProducts.every(p => selectedProductIds.has(p.ID))}
+                                        onChange={handleSelectAll}
+                                        color="primary"
+                                    />
+                                </TableCell>
                                 {[
                                     { key: 'Code', label: t('products_code_header', 'Code'), width: 140 },
                                     { key: 'Name', label: t('products_name', 'Product Info') },
@@ -420,58 +496,69 @@ const Products = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody component={motion.tbody} variants={containerVariants} initial="hidden" animate="visible">
-                            {visibleProducts.map(product => (
-                                <TableRow
-                                    key={product.ID}
-                                    component={motion.tr}
-                                    variants={itemVariants}
-                                    hover
-                                    sx={{ opacity: product.IsActive ? 1 : 0.6 }}
-                                >
-                                    <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{product.Code || '-'}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="subtitle2">{product.Name}</Typography>
-                                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
-                                            {product.Description}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        {product.Project ? (
-                                            <Chip
-                                                label={product.Project}
-                                                size="small"
+                            {visibleProducts.map(product => {
+                                const isSelected = selectedProductIds.has(product.ID);
+                                return (
+                                    <TableRow
+                                        key={product.ID}
+                                        component={motion.tr}
+                                        variants={itemVariants}
+                                        hover
+                                        selected={isSelected}
+                                        sx={{ opacity: product.IsActive ? 1 : 0.6 }}
+                                    >
+                                        <TableCell padding="checkbox">
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onChange={() => handleSelect(product.ID)}
                                                 color="primary"
-                                                variant="outlined"
-                                                onClick={() => setSearchTerm(product.Project || '')}
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{product.Code || '-'}</TableCell>
+                                        <TableCell>
+                                            <Typography variant="subtitle2">{product.Name}</Typography>
+                                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
+                                                {product.Description}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            {product.Project ? (
+                                                <Chip
+                                                    label={product.Project}
+                                                    size="small"
+                                                    color="primary"
+                                                    variant="outlined"
+                                                    onClick={() => setSearchTerm(product.Project || '')}
+                                                    sx={{ cursor: 'pointer' }}
+                                                />
+                                            ) : '-'}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Chip label={product.Stock || 0} size="small" variant="outlined" />
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                                            {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Chip
+                                                label={product.IsActive ? t('products_status_on_sale', 'On Sale') : t('products_status_stopped', 'Stopped')}
+                                                color={product.IsActive ? 'success' : 'default'}
+                                                size="small"
+                                                onClick={() => toggleStatus(product)}
                                                 sx={{ cursor: 'pointer' }}
                                             />
-                                        ) : '-'}
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Chip label={product.Stock || 0} size="small" variant="outlined" />
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                                        {new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(product.UnitPrice)}
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Chip
-                                            label={product.IsActive ? t('products_status_on_sale', 'On Sale') : t('products_status_stopped', 'Stopped')}
-                                            color={product.IsActive ? 'success' : 'default'}
-                                            size="small"
-                                            onClick={() => toggleStatus(product)}
-                                            sx={{ cursor: 'pointer' }}
-                                        />
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <IconButton size="small" onClick={() => openModal(product)} color="primary">
-                                            <EditIcon />
-                                        </IconButton>
-                                        <IconButton size="small" onClick={() => handleDelete(product.ID)} color="error">
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <IconButton size="small" onClick={() => openModal(product)} color="primary">
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton size="small" onClick={() => handleDelete(product.ID)} color="error">
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -634,7 +721,9 @@ const Products = () => {
                         </DialogContent>
                         <DialogActions>
                             <Button onClick={() => setIsModalOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
-                            <Button type="submit" variant="contained" color="primary">{t('common.save', 'Save')}</Button>
+                            <Button type="submit" variant="contained" color="primary" disabled={isSaving} startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : null}>
+                                {t('common.save', 'Save')}
+                            </Button>
                         </DialogActions>
                     </form>
                 </Dialog>
@@ -703,6 +792,7 @@ const Products = () => {
                     message={confirmDialog.message}
                     onConfirm={confirmDialog.onConfirm}
                     onCancel={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                    loading={isDeleting}
                 />
 
                 <Snackbar

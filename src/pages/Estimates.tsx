@@ -9,7 +9,7 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Button, TextField, IconButton, MenuItem, Box, Typography,
     Grid, Autocomplete, Dialog, TablePagination,
-    Chip
+    Chip, Checkbox
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -36,15 +36,18 @@ const Estimates = () => {
     const [loading, setLoading] = useState(true);
 
     // 筛选
-    const [monthFilter] = useState(new Date().toISOString().slice(0, 7));
-    const [statusFilter] = useState<string>('All');
+    const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7));
+    const [statusFilter, setStatusFilter] = useState<string>('All');
 
     // 状态
     const [isCreateMode, setIsCreateMode] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [viewEstimate, setViewEstimate] = useState<Estimate | null>(null);
     const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     const [manualId, setManualId] = useState<string>('');
     const [manualStatus, setManualStatus] = useState<'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Converted'>('Draft');
+    const [selectedEstimateIds, setSelectedEstimateIds] = useState<Set<number>>(new Set());
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // 表单状态
     const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -56,6 +59,29 @@ const Estimates = () => {
     // 分页
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.checked) {
+            const newSelecteds = new Set(selectedEstimateIds);
+            visibleEstimates.forEach(n => newSelecteds.add(n.ID));
+            setSelectedEstimateIds(newSelecteds);
+        } else {
+            const newSelecteds = new Set(selectedEstimateIds);
+            visibleEstimates.forEach(n => newSelecteds.delete(n.ID));
+            setSelectedEstimateIds(newSelecteds);
+        }
+    };
+
+    const handleSelect = (id: number) => {
+        const newSelecteds = new Set(selectedEstimateIds);
+        if (newSelecteds.has(id)) {
+            newSelecteds.delete(id);
+        } else {
+            newSelecteds.add(id);
+        }
+        setSelectedEstimateIds(newSelecteds);
+    };
+
     const handleChangePage = (_event: unknown, newPage: number) => setPage(newPage);
     const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
         setRowsPerPage(parseInt(event.target.value, 10));
@@ -148,14 +174,19 @@ const Estimates = () => {
             Remarks: remarks
         };
 
-        if (action === 'create') delete newEstimate.ID;
-
-        await estimateService.save(newEstimate);
-        showToast(action === 'update' ? t('estimates_updated') : t('estimates_created'));
-
-        setIsCreateMode(false);
-        setEditingEstimate(null);
-        loadData();
+        try {
+            setIsSaving(true);
+            await estimateService.save(newEstimate);
+            showToast(action === 'update' ? t('estimates_updated') : t('estimates_created'));
+            setIsCreateMode(false);
+            setEditingEstimate(null);
+            await loadData();
+        } catch (e: any) {
+            showToast(e.message || t('common.error'), 'error');
+            console.error('Save Estimate Error:', e);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleEdit = (estimate: Estimate) => {
@@ -170,6 +201,33 @@ const Estimates = () => {
         setValidUntil(estimate.ValidUntil ? toLocalYMD(estimate.ValidUntil) : '');
         setItems((estimate.Items as any) || []);
         setRemarks(estimate.Remarks || '');
+    };
+
+    const handleBulkDelete = () => {
+        setConfirmDialog({
+            open: true,
+            title: t('common.bulk_delete_confirm_title', 'Bulk Delete'),
+            message: t('common.bulk_delete_confirm_msg', 'Are you sure you want to delete the selected items?'),
+            onConfirm: async () => {
+                setIsDeleting(true);
+                try {
+                    const ids = Array.from(selectedEstimateIds);
+                    for (const id of ids) {
+                        await estimateService.delete(id);
+                    }
+                    setSelectedEstimateIds(new Set());
+                    setConfirmDialog(p => ({ ...p, open: false }));
+                    showToast(t('estimates_bulk_deleted', 'Selected estimates deleted'));
+                    loadData();
+                } catch (e) {
+                    console.error(e);
+                    showToast(t('common.error'), 'error');
+                } finally {
+                    setIsDeleting(false);
+                }
+            },
+            confirmColor: 'error'
+        });
     };
 
     const handleDelete = (id: number) => {
@@ -212,17 +270,22 @@ const Estimates = () => {
                         Status: 'Unpaid'
                     };
 
-                    // @ts-ignore - Create 返回 ID (number)
+                    // @ts-ignore
                     const invId = await invoiceService.create(invoiceData);
 
-                    // 为了更好的用户体验，人为延迟（使加载动画不会闪烁太快）
+                    // 给数据库同步留一点时间
                     await new Promise(r => setTimeout(r, 800));
 
                     setIsConverting(false); // Stop loading
 
                     if (invId) {
+                        // 关键：强制关闭预览/编辑模式，回到列表页，这样 ConfirmDialog 才能渲染
+                        setViewEstimate(null);
+                        setIsCreateMode(false);
+
                         await estimateService.save({ ...estimate, Status: 'Converted' });
                         showToast(t('estimates_converted_success', { id: invId }));
+                        await loadData();
 
                         // 询问用户是否要删除原始估价单
                         setConfirmDialog({
@@ -370,128 +433,62 @@ const Estimates = () => {
         );
     };
 
-    if (viewEstimate) {
-        return (
-            <Dialog fullScreen open={true} onClose={() => setViewEstimate(null)}>
-                <div className="flex flex-col items-center p-4 min-h-screen bg-gray-100 dark:bg-gray-900">
-                    <div className="w-full max-w-4xl flex justify-between items-center mb-4 print:hidden sticky top-0 bg-gray-100 z-10 py-2">
-                        <h2 className="text-xl font-bold">{t('estimates_preview', 'Preview')}</h2>
-                        <div className="flex gap-2">
-                            <Button variant="contained" startIcon={<PrintIcon />} onClick={() => window.print()}>{t('common.print')}</Button>
-                            <Button variant="contained" color="secondary" startIcon={<EditIcon />} onClick={() => handleEdit(viewEstimate)}>{t('common.edit')}</Button>
-                            <Button variant="contained" color="primary" startIcon={<TransformIcon />} onClick={() => handleConvert(viewEstimate)}>{t('estimates_convert', 'Convert')}</Button>
-                            <Button variant="outlined" onClick={() => setViewEstimate(null)}>{t('common.close')}</Button>
-                        </div>
-                    </div>
-                    <div className="bg-white shadow-2xl w-full max-w-[210mm] print:shadow-none">
-                        <PrintView estimate={viewEstimate} />
-                    </div>
-                    <style>{`@media print { .print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; } }`}</style>
-                </div>
-            </Dialog>
-        );
-    }
-
-    if (isCreateMode) {
-        return (
-            <PageTransition>
-                <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', bgcolor: 'background.paper', borderRadius: 2, minHeight: '80vh' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
-                        <Typography variant="h5">{editingEstimate ? `${t('estimates_title')} #${manualId}` : t('estimates_create_title')}</Typography>
-                        <Button onClick={() => setIsCreateMode(false)} variant="outlined">{t('common.cancel')}</Button>
-                    </Box>
-                    <Grid container spacing={2} sx={{ mb: 4 }}>
-                        <Grid size={{ xs: 12, md: 4 }}>
-                            <Autocomplete
-                                options={clients.filter(c => c.IsActive)}
-                                getOptionLabel={c => c.Name}
-                                value={clients.find(c => c.ID === selectedClientId) || null}
-                                onChange={(_, val) => setSelectedClientId(val?.ID || null)}
-                                renderInput={(params) => <TextField {...params} label={t('estimates_client')} required />}
-                            />
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                            <TextField type="date" label={t('estimates_date')} value={estimateDate} onChange={e => setEstimateDate(e.target.value)} fullWidth />
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                            <TextField type="date" label={t('estimates_valid_until')} value={validUntil} onChange={e => setValidUntil(e.target.value)} fullWidth />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 2 }}>
-                            <TextField select label={t('estimates_status')} value={manualStatus} onChange={e => setManualStatus(e.target.value as any)} fullWidth>
-                                {['Draft', 'Sent', 'Accepted', 'Rejected', 'Converted'].map(s => <MenuItem key={s} value={s}>{t(`estimates_status_${s.toLowerCase()}`, s)}</MenuItem>)}
-                            </TextField>
-                        </Grid>
-                    </Grid>
-
-                    <Box sx={{ mb: 2 }}>
-                        <Autocomplete
-                            freeSolo
-                            options={products.filter(p => p.Name.toLowerCase().includes(searchTerm.toLowerCase()))}
-                            getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code || '-'})`}
-                            renderInput={(params) => (
-                                <TextField {...params} label={t('products_search_placeholder', 'Search Product')} fullWidth InputProps={{ ...params.InputProps, startAdornment: <SearchIcon color="action" /> }} />
-                            )}
-                            onInputChange={(_, val) => setSearchTerm(val)}
-                            onChange={(_, val) => typeof val !== 'string' && val && addItem(val)}
-                        />
-                    </Box>
-
-                    <TableContainer component={Paper} variant="outlined" sx={{ mb: 4 }}>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>{t('estimates_item_product')}</TableCell>
-                                    <TableCell width={100}>{t('estimates_item_qty')}</TableCell>
-                                    <TableCell width={150}>{t('estimates_item_price')}</TableCell>
-                                    <TableCell width={120}>{t('estimates_item_total')}</TableCell>
-                                    <TableCell width={50}></TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {items.map((item, idx) => (
-                                    <TableRow key={idx}>
-                                        <TableCell>
-                                            <TextField value={item.ProductName} onChange={e => updateItem(idx, 'ProductName', e.target.value)} fullWidth size="small" placeholder={t('estimates_item_name_placeholder')} />
-                                            <TextField value={item.Remarks || ''} onChange={e => updateItem(idx, 'Remarks', e.target.value)} fullWidth size="small" placeholder={t('estimates_item_remarks_placeholder')} sx={{ mt: 0.5 }} />
-                                        </TableCell>
-                                        <TableCell>
-                                            <TextField type="number" value={item.Quantity} onChange={e => updateItem(idx, 'Quantity', Number(e.target.value))} fullWidth size="small" />
-                                        </TableCell>
-                                        <TableCell>
-                                            <TextField type="number" value={item.UnitPrice} onChange={e => updateItem(idx, 'UnitPrice', Number(e.target.value))} fullWidth size="small" />
-                                        </TableCell>
-                                        <TableCell>¥{(item.Quantity * item.UnitPrice).toLocaleString()}</TableCell>
-                                        <TableCell>
-                                            <IconButton size="small" color="error" onClick={() => removeItem(idx)}><DeleteIcon /></IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-
-                    <TextField label={t('estimates_remarks')} multiline rows={3} fullWidth value={remarks} onChange={e => setRemarks(e.target.value)} sx={{ mb: 4 }} />
-
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                        <Button variant="contained" size="large" onClick={() => handleSave(editingEstimate ? 'update' : 'create')}>{t('estimates_save_btn')}</Button>
-                    </Box>
-                </Box>
-            </PageTransition >
-        );
-    }
-
     return (
         <PageTransition>
             <Box sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'center' }}>
                     <Typography variant="h4" fontWeight="bold">{t('estimates_title', 'Estimates')}</Typography>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>{t('estimates_create_title', 'Create New')}</Button>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                            size="small"
+                            type="month"
+                            label={t('estimates_filter_month')}
+                            value={monthFilter}
+                            onChange={(e) => setMonthFilter(e.target.value)}
+                            sx={{ width: 150 }}
+                        />
+                        <TextField
+                            select
+                            size="small"
+                            label={t('estimates_filter_status')}
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            sx={{ width: 120 }}
+                        >
+                            <MenuItem value="All">{t('common.all')}</MenuItem>
+                            <MenuItem value="Draft">{t('estimates_status_draft')}</MenuItem>
+                            <MenuItem value="Sent">{t('estimates_status_sent')}</MenuItem>
+                            <MenuItem value="Accepted">{t('estimates_status_accepted')}</MenuItem>
+                            <MenuItem value="Rejected">{t('estimates_status_rejected')}</MenuItem>
+                            <MenuItem value="Converted">{t('estimates_status_converted')}</MenuItem>
+                        </TextField>
+                        {selectedEstimateIds.size > 0 && (
+                            <Button
+                                variant="contained"
+                                color="error"
+                                startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
+                                disabled={isDeleting}
+                                onClick={handleBulkDelete}
+                            >
+                                {t('common.delete')} ({selectedEstimateIds.size})
+                            </Button>
+                        )}
+                        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>{t('estimates_create_title', 'Create New')}</Button>
+                    </Box>
                 </Box>
 
                 <TableContainer component={Paper}>
                     <Table>
-                        <TableHead>
+                        <TableHead sx={{ bgcolor: 'grey.100' }}>
                             <TableRow>
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        indeterminate={visibleEstimates.length > 0 && Array.from(visibleEstimates).some(p => selectedEstimateIds.has(p.ID)) && !visibleEstimates.every(p => selectedEstimateIds.has(p.ID))}
+                                        checked={visibleEstimates.length > 0 && visibleEstimates.every(p => selectedEstimateIds.has(p.ID))}
+                                        onChange={handleSelectAll}
+                                        color="primary"
+                                    />
+                                </TableCell>
                                 <TableCell>{t('estimates_id')}</TableCell>
                                 <TableCell>{t('estimates_date')}</TableCell>
                                 <TableCell>{t('estimates_client')}</TableCell>
@@ -501,26 +498,36 @@ const Estimates = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody component={motion.tbody} variants={containerVariants} initial="hidden" animate="visible">
-                            {visibleEstimates.map(est => (
-                                <TableRow key={est.ID} component={motion.tr} variants={itemVariants} hover>
-                                    <TableCell>{est.ID}</TableCell>
-                                    <TableCell>{new Date(est.EstimateDate).toLocaleDateString()}</TableCell>
-                                    <TableCell>{est.ClientName || '-'}</TableCell>
-                                    <TableCell align="right">¥{est.TotalAmount.toLocaleString()}</TableCell>
-                                    <TableCell align="center">
-                                        <Chip
-                                            label={t(`estimates_status_${est.Status.toLowerCase()}`, est.Status)}
-                                            color={est.Status === 'Converted' ? 'success' : est.Status === 'Sent' ? 'primary' : 'default'}
-                                            size="small"
-                                        />
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <IconButton size="small" onClick={() => setViewEstimate(est)}><VisibilityIcon /></IconButton>
-                                        <IconButton size="small" onClick={() => handleEdit(est)}><EditIcon /></IconButton>
-                                        <IconButton size="small" color="error" onClick={() => handleDelete(est.ID)}><DeleteIcon /></IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {visibleEstimates.map(est => {
+                                const isSelected = selectedEstimateIds.has(est.ID);
+                                return (
+                                    <TableRow key={est.ID} component={motion.tr} variants={itemVariants} hover selected={isSelected}>
+                                        <TableCell padding="checkbox">
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onChange={() => handleSelect(est.ID)}
+                                                color="primary"
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 'medium' }}>#{est.ID}</TableCell>
+                                        <TableCell>{new Date(est.EstimateDate).toLocaleDateString()}</TableCell>
+                                        <TableCell>{est.ClientName || '-'}</TableCell>
+                                        <TableCell align="right">¥{est.TotalAmount.toLocaleString()}</TableCell>
+                                        <TableCell align="center">
+                                            <Chip
+                                                label={t(`estimates_status_${est.Status.toLowerCase()}`, est.Status)}
+                                                color={est.Status === 'Converted' ? 'success' : est.Status === 'Sent' ? 'primary' : 'default'}
+                                                size="small"
+                                            />
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <IconButton size="small" onClick={() => setViewEstimate(est)}><VisibilityIcon /></IconButton>
+                                            <IconButton size="small" onClick={() => handleEdit(est)}><EditIcon /></IconButton>
+                                            <IconButton size="small" color="error" onClick={() => handleDelete(est.ID)}><DeleteIcon /></IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                     <TablePagination
@@ -535,6 +542,251 @@ const Estimates = () => {
                     />
                 </TableContainer>
 
+                {/* Create/Edit Dialog */}
+                <Dialog
+                    fullScreen
+                    open={isCreateMode}
+                    onClose={() => setIsCreateMode(false)}
+                    PaperProps={{ sx: { bgcolor: 'background.paper' } }}
+                >
+                    {/* Sticky Header for Create/Edit */}
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        p: 2,
+                        px: 4,
+                        bgcolor: 'background.paper',
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 10,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                    }}>
+                        <Typography variant="h6" fontWeight="bold" color="primary">
+                            {editingEstimate ? `${t('estimates_title')} #${manualId}` : t('estimates_create_title')}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Button variant="outlined" color="inherit" onClick={() => setIsCreateMode(false)}>{t('common.cancel')}</Button>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => handleSave(editingEstimate ? 'update' : 'create')}
+                                disabled={isSaving}
+                                startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : null}
+                            >
+                                {t('estimates_save_btn')}
+                            </Button>
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ p: 4, maxWidth: 'lg', mx: 'auto', width: '100%', mb: 8 }}>
+                        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+
+                            <Grid container spacing={3} sx={{ mb: 4 }}>
+                                <Grid size={{ xs: 12, md: 4 }}>
+                                    <Autocomplete
+                                        options={clients.filter(c => c.IsActive)}
+                                        getOptionLabel={c => c.Name}
+                                        value={clients.find(c => c.ID === selectedClientId) || null}
+                                        onChange={(_, val) => setSelectedClientId(val?.ID || null)}
+                                        renderInput={(params) => <TextField {...params} label={t('estimates_client')} required variant="outlined" fullWidth />}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 6, md: 3 }}>
+                                    <TextField
+                                        type="date"
+                                        label={t('estimates_date')}
+                                        value={estimateDate}
+                                        onChange={e => setEstimateDate(e.target.value)}
+                                        fullWidth
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 6, md: 3 }}>
+                                    <TextField
+                                        type="date"
+                                        label={t('estimates_valid_until')}
+                                        value={validUntil}
+                                        onChange={e => setValidUntil(e.target.value)}
+                                        fullWidth
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 2 }}>
+                                    <TextField
+                                        select
+                                        label={t('estimates_status')}
+                                        value={manualStatus}
+                                        onChange={e => setManualStatus(e.target.value as any)}
+                                        fullWidth
+                                    >
+                                        {['Draft', 'Sent', 'Accepted', 'Rejected', 'Converted'].map(s => (
+                                            <MenuItem key={s} value={s}>{t(`estimates_status_${s.toLowerCase()}`, s)}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            </Grid>
+
+                            <Box sx={{ mb: 3 }}>
+                                <Autocomplete
+                                    freeSolo
+                                    options={products.filter(p => p.Name.toLowerCase().includes(searchTerm.toLowerCase()))}
+                                    getOptionLabel={(option) => typeof option === 'string' ? option : `${option.Name} (${option.Code || '-'})`}
+                                    onInputChange={(_, val) => setSearchTerm(val)}
+                                    onChange={(_, val) => typeof val !== 'string' && val && addItem(val)}
+                                    renderOption={(props, option) => (
+                                        <li {...props} key={option.ID} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px' }}>
+                                            <div>
+                                                <Typography variant="body2" color="text.primary">{option.Name}</Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {option.Code} | {t('common.stock_display', { stock: option.Stock })}
+                                                </Typography>
+                                            </div>
+                                            <Typography variant="body2" color="secondary" sx={{ fontFamily: 'monospace' }}>
+                                                ¥{option.UnitPrice.toLocaleString()}
+                                            </Typography>
+                                        </li>
+                                    )}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={t('products_search_placeholder', 'Search Product')}
+                                            fullWidth
+                                            placeholder={t('common.search_hint')}
+                                            InputProps={{ ...params.InputProps, startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} /> }}
+                                        />
+                                    )}
+                                />
+                            </Box>
+
+                            <TableContainer component={Paper} variant="outlined" sx={{ mb: 4, borderRadius: 1 }}>
+                                <Table size="small">
+                                    <TableHead sx={{ bgcolor: 'grey.50' }}>
+                                        <TableRow>
+                                            <TableCell>{t('estimates_item_product')}</TableCell>
+                                            <TableCell width={100}>{t('estimates_item_qty')}</TableCell>
+                                            <TableCell width={140}>{t('estimates_item_price')}</TableCell>
+                                            <TableCell width={140} align="right">{t('estimates_item_total')}</TableCell>
+                                            <TableCell width={50}></TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {items.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                                                    {t('common.no_items_added')}
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            items.map((item, idx) => (
+                                                <TableRow key={idx}>
+                                                    <TableCell sx={{ minWidth: 200 }}>
+                                                        <TextField
+                                                            value={item.ProductName}
+                                                            onChange={e => updateItem(idx, 'ProductName', e.target.value)}
+                                                            fullWidth size="small"
+                                                            variant="standard"
+                                                            sx={{ mb: 0.5 }}
+                                                        />
+                                                        <TextField
+                                                            value={item.Remarks || ''}
+                                                            onChange={e => updateItem(idx, 'Remarks', e.target.value)}
+                                                            fullWidth size="small"
+                                                            variant="standard"
+                                                            placeholder={t('estimates_item_remarks_placeholder')}
+                                                            sx={{ '& .MuiInputBase-input': { fontSize: '0.75rem', color: 'text.secondary' } }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <TextField
+                                                            type="number"
+                                                            value={item.Quantity}
+                                                            onChange={e => updateItem(idx, 'Quantity', Number(e.target.value))}
+                                                            fullWidth size="small"
+                                                            variant="standard"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <TextField
+                                                            type="number"
+                                                            value={item.UnitPrice}
+                                                            onChange={e => updateItem(idx, 'UnitPrice', Number(e.target.value))}
+                                                            fullWidth size="small"
+                                                            variant="standard"
+                                                            InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 0.5 }}>¥</Typography> }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <Typography variant="body2" fontWeight="medium">
+                                                            ¥{(item.Quantity * item.UnitPrice).toLocaleString()}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <IconButton size="small" color="error" onClick={() => removeItem(idx)}><DeleteIcon fontSize="inherit" /></IconButton>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+
+                            <Grid container spacing={4}>
+                                <Grid size={{ xs: 12, md: 7 }}>
+                                    <TextField
+                                        label={t('estimates_remarks')}
+                                        multiline
+                                        rows={4}
+                                        fullWidth
+                                        value={remarks}
+                                        onChange={e => setRemarks(e.target.value)}
+                                        placeholder={t('common.remarks_hint')}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 5 }}>
+                                    <Box sx={{
+                                        p: 3,
+                                        bgcolor: 'background.paper',
+                                        borderRadius: 2,
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                                        textAlign: 'right'
+                                    }}>
+                                        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>{t('common.total', 'Total')}</Typography>
+                                        <Typography variant="h3" fontWeight="bold" color="primary">
+                                            ¥{items.reduce((sum, item) => sum + (item.UnitPrice * item.Quantity), 0).toLocaleString()}
+                                        </Typography>
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </Paper>
+                    </Box>
+                </Dialog>
+
+                {/* Preview Dialog */}
+                <Dialog fullScreen open={Boolean(viewEstimate)} onClose={() => setViewEstimate(null)}>
+                    {viewEstimate && (
+                        <div className="flex flex-col items-center p-4 min-h-screen bg-gray-50 dark:bg-gray-900 overflow-y-auto w-full">
+                            <div className="w-full max-w-4xl flex justify-between items-center mb-6 print:hidden sticky top-0 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm z-10 py-3 px-6 rounded-b-xl border-x border-b border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t('estimates_preview', 'Preview')}</h2>
+                                <div className="flex gap-2">
+                                    <Button variant="contained" startIcon={<PrintIcon />} onClick={() => window.print()}>{t('common.print')}</Button>
+                                    <Button variant="contained" color="secondary" startIcon={<EditIcon />} onClick={() => handleEdit(viewEstimate)}>{t('common.edit')}</Button>
+                                    <Button variant="contained" color="primary" startIcon={<TransformIcon />} onClick={() => handleConvert(viewEstimate)}>{t('estimates_convert', 'Convert')}</Button>
+                                    <Button variant="outlined" onClick={() => setViewEstimate(null)}>{t('common.close')}</Button>
+                                </div>
+                            </div>
+                            <div className="bg-white shadow-2xl w-full max-w-[210mm] print:shadow-none mb-8">
+                                <PrintView estimate={viewEstimate} />
+                            </div>
+                            <style>{`@media print { .print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; } }`}</style>
+                        </div>
+                    )}
+                </Dialog>
+
                 <ConfirmDialog
                     open={confirmDialog.open}
                     title={confirmDialog.title}
@@ -544,18 +796,18 @@ const Estimates = () => {
                     confirmLabel={confirmDialog.confirmLabel}
                     cancelLabel={confirmDialog.cancelLabel}
                     confirmColor={confirmDialog.confirmColor}
+                    loading={isDeleting}
                 />
+
                 <Snackbar open={toast.open} autoHideDuration={3000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-                    <Alert onClose={handleCloseToast} severity={toast.severity}>{toast.message}</Alert>
+                    <Alert onClose={handleCloseToast} severity={toast.severity} variant="filled" sx={{ width: '100%' }}>{toast.message}</Alert>
                 </Snackbar>
+
                 <LoadingOverlay open={loading} />
-                {/* Loading Overlay */}
-                <Backdrop
-                    sx={{ color: '#fff', zIndex: 9999 }} // 最高优先级
-                    open={isConverting}
-                >
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                        <CircularProgress color="inherit" size={60} />
+
+                <Backdrop sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 101 }} open={isConverting}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, bgcolor: 'background.paper', p: 4, borderRadius: 2, color: 'text.primary' }}>
+                        <CircularProgress color="primary" size={60} />
                         <Typography variant="h6">{t('converting', 'Converting...')}</Typography>
                     </Box>
                 </Backdrop>

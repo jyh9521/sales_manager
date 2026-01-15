@@ -166,128 +166,124 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('save-invoice', async (_event, invoice: any) => {
-    let invoiceID = invoice.ID;
-    try {
+    let invoiceID = Number(invoice.ID);
+    console.log('=== SAVE INVOICE START ===', { invoiceID, clientID: invoice.ClientID });
 
+    try {
+      // 1. 验证客户是否存在 (防止外键约束错误)
+      const clientCheck = await connection.query(`SELECT ID FROM Clients WHERE ID = ${invoice.ClientID}`) as any[];
+      if (!clientCheck || clientCheck.length === 0) {
+        console.error('Client not found:', invoice.ClientID);
+        return { success: false, error: `客户 ID ${invoice.ClientID} 不存在` };
+      }
+
+      // 自动处理 ID: 如果为空或 NaN，则寻找下一个可用 ID
+      if (!invoiceID || isNaN(invoiceID)) {
+        const last = await connection.query('SELECT MAX(ID) as LastID FROM Invoices') as any[];
+        invoiceID = (last?.[0]?.LastID || 0) + 1;
+        console.log(`Generated new ID for invoice: ${invoiceID}`);
+      }
 
       // 格式化日期以供 Access 使用 (YYYY-MM-DD)
       const invoiceDate = new Date(invoice.InvoiceDate).toISOString().split('T')[0];
       const dueDate = invoice.DueDate ? new Date(invoice.DueDate).toISOString().split('T')[0] : null;
 
-      // --- 库存管理：如果更新则恢复库存 ---
-      if (invoiceID) {
-        // 获取旧项目以恢复其库存
+      // 查看记录是否已真正存在于数据库中
+      const existing = await connection.query(`SELECT ID FROM Invoices WHERE ID = ${invoiceID}`) as any[];
+      const exists = existing && existing.length > 0;
+      console.log('Invoice existence check:', { exists, invoiceID });
+
+      // 转义 JSON 字符串中的单引号
+      const itemsJson = JSON.stringify(invoice.Items).replace(/'/g, "''");
+      const exampleFieldEscaped = (invoice.ExampleField || '').replace(/'/g, "''");
+
+      if (exists) {
+        // --- 更新逻辑 ---
+        console.log(`Updating existing invoice #${invoiceID}...`);
+
+        // 恢复旧项目的库存
         const oldItems = await connection.query(`SELECT ProductID, Quantity FROM InvoiceItems WHERE InvoiceID = ${invoiceID}`) as any[];
         if (oldItems && oldItems.length > 0) {
           for (const item of oldItems) {
-            // 恢复库存
             await connection.execute(`UPDATE Products SET Stock = Stock + ${item.Quantity} WHERE ID = ${item.ProductID}`);
           }
         }
-      }
 
-      const itemsJson = JSON.stringify(invoice.Items).replace(/'/g, "''");
-
-      if (invoiceID) {
-        // 更新
+        // 更新主表
         await connection.execute(`
-                    UPDATE Invoices 
-                    SET ClientID=${invoice.ClientID}, 
-                        InvoiceDate='${invoiceDate}', 
-                        DueDate=${dueDate ? `'${dueDate}'` : 'NULL'}, 
-                        TotalAmount=${invoice.TotalAmount},
-                        Status='${invoice.Status || 'Unpaid'}',
-                        Items='${itemsJson}',
-                        ExampleField='${invoice.ExampleField || ''}'
-                    WHERE ID=${invoiceID}
-                `);
-        // 删除旧项目
+          UPDATE Invoices 
+          SET ClientID=${invoice.ClientID}, 
+              InvoiceDate='${invoiceDate}', 
+              DueDate=${dueDate ? `'${dueDate}'` : 'NULL'}, 
+              TotalAmount=${invoice.TotalAmount},
+              Status='${invoice.Status || 'Unpaid'}',
+              Items='${itemsJson}',
+              ExampleField='${exampleFieldEscaped}'
+          WHERE ID=${invoiceID}
+        `);
+
+        // 删除旧项目以便重新插入
         await connection.execute(`DELETE FROM InvoiceItems WHERE InvoiceID = ${invoiceID}`);
       } else {
-        // 插入
-        // Insert
-        try {
-          await connection.execute(`
-                        INSERT INTO Invoices (ClientID, InvoiceDate, DueDate, TotalAmount, Status, Items, ExampleField)
-                        VALUES (${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : 'NULL'}, ${invoice.TotalAmount}, '${invoice.Status || 'Unpaid'}', '${itemsJson}', '${invoice.ExampleField || ''}')
-                    `);
-        } catch (insertError) {
-          console.error("Insert failed, checking verification...", insertError);
-          // 验证是否实际成功 (Access 误报生成错误)
-          // 检查过去 5 秒内创建的记录...
-          // 由于没有毫秒级精度...
-          await new Promise(r => setTimeout(r, 500)); // Wait a bit for Access to flush
-          const verify = await connection.query(`
-                SELECT TOP 1 ID FROM Invoices 
-                WHERE ClientID=${invoice.ClientID} 
-                AND TotalAmount=${invoice.TotalAmount} 
-                ORDER BY ID DESC
-            `) as any[];
+        // --- 插入逻辑 ---
+        console.log(`Creating new invoice #${invoiceID}...`);
 
-          if (verify && verify.length > 0) {
-            // 假设这是我们要创建的
-            console.log("Verification checks out. Error was false positive.");
-          } else {
-            throw insertError; // 如果未找到则重新抛出
+        // 如果 ID 冲突（虽然 exists 检查过，但为了安全再次确认最大 ID）
+        // 这里的逻辑保持用户手动指定的 ID，直到确认冲突
+        try {
+          const insertSQL = `
+            INSERT INTO Invoices (ID, ClientID, InvoiceDate, DueDate, TotalAmount, Status, Items, ExampleField)
+            VALUES (${invoiceID}, ${invoice.ClientID}, '${invoiceDate}', ${dueDate ? `'${dueDate}'` : 'NULL'}, ${invoice.TotalAmount}, '${invoice.Status || 'Unpaid'}', '${itemsJson}', '${exampleFieldEscaped}')
+          `;
+          console.log('Insert SQL:', insertSQL);
+          await connection.execute(insertSQL);
+        } catch (insertError: any) {
+          console.warn("Insert with ID failed, trying verify strategy:", insertError.message);
+          // 验证是否已成功 (Access 有时会误报)
+          await new Promise(r => setTimeout(r, 500));
+          const verify = await connection.query(`SELECT ID FROM Invoices WHERE ID = ${invoiceID}`) as any[];
+          if (!verify || verify.length === 0) {
+            throw new Error(`发票主记录插入失败: ${insertError.message}`);
           }
         }
 
-        // 获取最后一个 ID
-        const res = await connection.query('SELECT @@IDENTITY AS id') as any[];
-        // 二次检查 ID 是否有效
-        if (!res || !res[0] || !res[0].id) {
-          // 回退：按签名获取
-          const fallback = await connection.query(`SELECT TOP 1 ID FROM Invoices WHERE ClientID=${invoice.ClientID} ORDER BY ID DESC`) as any[];
-          if (!fallback || !fallback.length) throw new Error("Failed to retrieve ID after insert.");
-          invoiceID = fallback[0].ID;
-        } else {
-          invoiceID = res[0].id;
-        }
+        // 等待 Access 文件系统同步
+        await new Promise(r => setTimeout(r, 800));
       }
 
-      // 插入项目并扣除库存
+      // 3. 插入项目并扣除库存
+      console.log(`Inserting items for invoice #${invoiceID}...`);
       if (invoice.Items && invoice.Items.length > 0) {
-        try {
-          for (const item of invoice.Items) {
-            const itemDate = item.ItemDate ? `'${new Date(item.ItemDate).toISOString().split('T')[0]}'` : 'NULL';
-            const remarks = item.Remarks ? `'${item.Remarks.replace(/'/g, "''")}'` : 'NULL'; // 转义引号
-            const unit = item.Unit ? `'${item.Unit.replace(/'/g, "''")}'` : 'NULL';
-            const project = item.Project ? `'${item.Project.replace(/'/g, "''")}'` : 'NULL';
-            const taxRate = item.TaxRate || 10;
+        for (const item of invoice.Items) {
+          const itemDate = item.ItemDate ? `'${new Date(item.ItemDate).toISOString().split('T')[0]}'` : 'NULL';
+          const remarks = (item.Remarks || '').replace(/'/g, "''");
+          const unit = (item.Unit || '').replace(/'/g, "''");
+          const project = (item.Project || '').replace(/'/g, "''");
+          const taxRate = item.TaxRate || 10;
 
-            await connection.execute(`
-                           INSERT INTO InvoiceItems (InvoiceID, ProductID, Quantity, UnitPrice, Unit, ItemDate, Remarks, Project, TaxRate)
-                           VALUES (${invoiceID}, ${item.ProductID}, ${item.Quantity}, ${item.UnitPrice}, ${unit}, ${itemDate}, ${remarks}, ${project}, ${taxRate})
-                       `);
+          const itemSQL = `
+            INSERT INTO InvoiceItems (InvoiceID, ProductID, Quantity, UnitPrice, Unit, ItemDate, Remarks, Project, TaxRate)
+            VALUES (${invoiceID}, ${item.ProductID}, ${item.Quantity}, ${item.UnitPrice}, '${unit}', ${itemDate}, '${remarks}', '${project}', ${taxRate})
+          `;
+          await connection.execute(itemSQL);
 
-            // 扣除库存 (尽力而为 - 捕获每个项目的错误或让外部捕获处理)
-            try {
-              await connection.execute(`UPDATE Products SET Stock = Stock - ${item.Quantity} WHERE ID = ${item.ProductID}`);
-            } catch (stockErr) {
-              console.warn("Stock update warning:", stockErr);
-            }
-
-            // 节流以防止 spawn 耗尽
-            await new Promise(r => setTimeout(r, 100));
+          // 扣除库存
+          try {
+            await connection.execute(`UPDATE Products SET Stock = Stock - ${item.Quantity} WHERE ID = ${item.ProductID}`);
+          } catch (stockErr) {
+            console.warn("Stock update warning:", stockErr);
           }
-        } catch (itemErr) {
-          console.error("Item insertion incomplete:", itemErr);
-          // 如果我们有 ID，无论如何都要返回它，这样 UI 就不会冻结/显示错误，假设 DB 可能已经工作或者用户可以回退
-          return { success: true, id: invoiceID, warning: "Partial save completed" };
+
+          await new Promise(r => setTimeout(r, 100)); // 节流
         }
       }
 
+      console.log('=== SAVE INVOICE SUCCESS ===', invoiceID);
       return { success: true, id: invoiceID };
+
     } catch (e: any) {
-      console.error('Save Invoice Error:', e);
-      // 关键修复：如果生成了 invoiceID，则主记录存在。
-      // 该错误可能是来自项目/库存更新的虚假 "Spawn" 错误。
-      // 我们返回成功以防止 UI 显示失败消息，而实际上它已工作。
-      if (invoiceID) {
-        console.warn('Suppressing error because Invoice ID exists:', invoiceID);
-        return { success: true, id: invoiceID, warning: e.message || String(e) };
-      }
-      throw e;
+      console.error('=== SAVE INVOICE ERROR ===', e);
+      return { success: false, error: e.message || String(e) };
     }
   });
 
@@ -321,37 +317,56 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('save-estimate', async (_event, estimate: any) => {
+    let id = Number(estimate.ID);
+    console.log('=== SAVE ESTIMATE START ===', { id, clientID: estimate.ClientID });
+
     try {
-      let id = estimate.ID;
+      // 自动处理 ID: 如果为空或 NaN，则寻找下一个可用 ID
+      if (!id || isNaN(id)) {
+        const last = await connection.query('SELECT MAX(ID) as LastID FROM Estimates') as any[];
+        id = (last?.[0]?.LastID || 0) + 1;
+        console.log(`Generated new ID for estimate: ${id}`);
+      }
+
       const date = new Date(estimate.EstimateDate).toISOString().split('T')[0];
       const validUntil = estimate.ValidUntil ? `'${new Date(estimate.ValidUntil).toISOString().split('T')[0]}'` : 'NULL';
       const itemsJson = JSON.stringify(estimate.Items).replace(/'/g, "''");
       const remarks = estimate.Remarks ? `'${estimate.Remarks.replace(/'/g, "''")}'` : 'NULL';
       const status = estimate.Status || 'Draft';
 
-      if (id) {
+      // 检查记录是否已存在 (支持手动 ID)
+      const existing = await connection.query(`SELECT ID FROM Estimates WHERE ID = ${id}`) as any[];
+      const exists = existing && existing.length > 0;
+
+      if (exists) {
+        console.log(`Updating existing estimate #${id}...`);
         await connection.execute(`
-                  UPDATE Estimates
-                  SET ClientID=${estimate.ClientID},
-                      EstimateDate='${date}',
-                      ValidUntil=${validUntil},
-                      TotalAmount=${estimate.TotalAmount},
-                      Status='${status}',
-                      Items='${itemsJson}',
-                      Remarks=${remarks}
-                  WHERE ID=${id}
-              `);
+          UPDATE Estimates
+          SET ClientID=${estimate.ClientID},
+              EstimateDate='${date}',
+              ValidUntil=${validUntil},
+              TotalAmount=${estimate.TotalAmount},
+              Status='${status}',
+              Items='${itemsJson}',
+              Remarks=${remarks}
+          WHERE ID=${id}
+        `);
       } else {
+        console.log(`Creating new estimate #${id}...`);
         await connection.execute(`
-                  INSERT INTO Estimates (ClientID, EstimateDate, ValidUntil, TotalAmount, Status, Items, Remarks)
-                  VALUES (${estimate.ClientID}, '${date}', ${validUntil}, ${estimate.TotalAmount}, '${status}', '${itemsJson}', ${remarks})
-              `);
-        const res = await connection.query('SELECT @@IDENTITY AS id') as any[];
-        id = res[0].id;
+          INSERT INTO Estimates (ID, ClientID, EstimateDate, ValidUntil, TotalAmount, Status, Items, Remarks)
+          VALUES (${id}, ${estimate.ClientID}, '${date}', ${validUntil}, ${estimate.TotalAmount}, '${status}', '${itemsJson}', ${remarks})
+        `);
+
+        // 如果是自增 ID 或需要获取最新 ID，可以按需调整，但目前前端通常带手动 ID
+        await new Promise(r => setTimeout(r, 500));
       }
+
+      console.log('=== SAVE ESTIMATE SUCCESS ===', id);
       return { success: true, id };
-    } catch (e) {
-      console.error(e); throw e;
+    } catch (e: any) {
+      console.error('=== SAVE ESTIMATE ERROR ===', e);
+      return { success: false, error: e.message || String(e) };
     }
   });
 

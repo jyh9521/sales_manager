@@ -1,4 +1,4 @@
-# Logs
+# Logs - 日志文件
 logs
 *.log
 npm-debug.log*
@@ -6,19 +6,30 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-dist-electron
 build_log.txt
-release/
-*.local
+tsc_output*.txt
 
-# Editor directories and files
+# Dependencies - 依赖包
+node_modules/
+
+# Build and Release - 构建产物
+dist/
+dist-ssr/
+dist-electron/
+release/
+*.tsbuildinfo
+
+# Environment & Secrets - 环境配置文件
+.env
+.env.local
+.env.*.local
+*.local
+# .npmrc
+
+# Editor directories and files - 编辑器配置
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -26,9 +37,10 @@ release/
 *.sln
 *.sw?
 
-# Database
+# System files - 系统冗余文件
+Thumbs.db
+desktop.ini
+
+# Database - 数据库及备份
 *.accdb
 *.bak
-
-#log
-tsc_output*.txt
