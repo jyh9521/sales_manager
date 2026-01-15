@@ -5,6 +5,7 @@ export interface Client {
     Name: string;
     Address: string;
     ContactInfo: string;
+    Fax: string; // New field
     IsActive: boolean;
 }
 
@@ -23,9 +24,10 @@ export const clientService = {
         const name = client.Name.replace(/'/g, "''");
         const address = (client.Address || '').replace(/'/g, "''");
         const contact = (client.ContactInfo || '').replace(/'/g, "''");
+        const fax = (client.Fax || '').replace(/'/g, "''");
         const isActive = client.IsActive ? 1 : 0;
 
-        const sql = `INSERT INTO Clients (Name, Address, ContactInfo, IsActive) VALUES ('${name}', '${address}', '${contact}', ${isActive})`;
+        const sql = `INSERT INTO Clients (Name, Address, ContactInfo, Fax, IsActive) VALUES ('${name}', '${address}', '${contact}', '${fax}', ${isActive})`;
         await execute(sql);
 
         const idRes = await query<{ ID: number }[]>("SELECT TOP 1 ID FROM Clients ORDER BY ID DESC");
@@ -36,9 +38,10 @@ export const clientService = {
         const name = client.Name.replace(/'/g, "''");
         const address = (client.Address || '').replace(/'/g, "''");
         const contact = (client.ContactInfo || '').replace(/'/g, "''");
+        const fax = (client.Fax || '').replace(/'/g, "''");
         const isActive = client.IsActive ? 1 : 0;
 
-        const sql = `UPDATE Clients SET Name='${name}', Address='${address}', ContactInfo='${contact}', IsActive=${isActive} WHERE ID=${client.ID}`;
+        const sql = `UPDATE Clients SET Name='${name}', Address='${address}', ContactInfo='${contact}', Fax='${fax}', IsActive=${isActive} WHERE ID=${client.ID}`;
         await execute(sql);
     },
 

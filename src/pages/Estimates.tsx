@@ -4,7 +4,9 @@ import { Estimate, estimateService } from '../services/estimates';
 import { InvoiceItem, invoiceService } from '../services/invoices';
 import { Client, clientService } from '../services/clients';
 import { Product, productService } from '../services/products';
+import { Unit, unitService } from '../services/units';
 import { AppSettings, defaultSettings, settingsService } from '../services/settings';
+import { Settings as SettingsIcon } from '@mui/icons-material';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Button, TextField, IconButton, MenuItem, Box, Typography,
@@ -32,6 +34,8 @@ const Estimates = () => {
     const [estimates, setEstimates] = useState<Estimate[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [units, setUnits] = useState<Unit[]>([]);
+    const [isUnitManagerOpen, setIsUnitManagerOpen] = useState(false);
     const [settings, setSettings] = useState<AppSettings>(defaultSettings);
     const [loading, setLoading] = useState(true);
 
@@ -113,21 +117,30 @@ const Estimates = () => {
     };
     const handleCloseToast = () => setToast({ ...toast, open: false });
 
-    useEffect(() => { loadData(); }, []);
-
     const loadData = async () => {
-        const [eData, cData, pData, sData] = await Promise.all([
-            estimateService.getAll(),
-            clientService.getAll(),
-            productService.getAll(),
-            settingsService.get()
-        ]);
-        setEstimates(eData);
-        setClients(cData);
-        setProducts(pData);
-        setSettings(sData);
-        setLoading(false);
+        try {
+            const [eData, cData, pData, uData, sData] = await Promise.all([
+                estimateService.getAll(),
+                clientService.getAll(),
+                productService.getAll(),
+                unitService.getAll(),
+                settingsService.get()
+            ]);
+            setEstimates(eData);
+            setClients(cData);
+            setProducts(pData);
+            setUnits(uData);
+            if (sData) setSettings(sData);
+        } catch (error) {
+            console.error('Failed to load data:', error);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        loadData();
+    }, []);
 
     const toLocalYMD = (val: Date | string) => {
         if (!val) return '';
@@ -320,6 +333,14 @@ const Estimates = () => {
     };
 
     const addItem = (product?: Product) => {
+        let defaultUnit = '';
+        if (items.length > 0) {
+            const last = items[items.length - 1];
+            if (last.Unit) {
+                defaultUnit = last.Unit;
+            }
+        }
+
         const newItem: InvoiceItem = {
             ProductID: product?.ID || 0,
             ProductName: product?.Name || '',
@@ -327,7 +348,7 @@ const Estimates = () => {
             UnitPrice: product?.UnitPrice || 0,
             Project: product?.Project,
             ItemDate: estimateDate,
-            Unit: '',
+            Unit: defaultUnit,
             Remarks: '',
             TaxRate: product?.TaxRate || 10
         };
@@ -356,77 +377,210 @@ const Estimates = () => {
 
     const PrintView = ({ estimate }: { estimate: Estimate }) => {
         const client = clients.find(c => c.ID === estimate.ClientID);
+
+        // Calculate totals on the fly like Invoices
         const items = (estimate.Items as any) || [];
-        const total = estimate.TotalAmount;
+        const standardItems = items.filter((i: any) => (i.TaxRate || 10) === 10);
+        const reducedItems = items.filter((i: any) => (i.TaxRate || 10) === 8);
+        const standardSubtotal = standardItems.reduce((sum: number, i: any) => sum + (i.Quantity * i.UnitPrice), 0);
+        const reducedSubtotal = reducedItems.reduce((sum: number, i: any) => sum + (i.Quantity * i.UnitPrice), 0);
+        const standardTax = Math.floor(standardSubtotal * 0.1);
+        const reducedTax = Math.floor(reducedSubtotal * 0.08);
+        const totalTax = standardTax + reducedTax;
+        const subtotal = standardSubtotal + reducedSubtotal;
+        const total = subtotal + totalTax;
+
+        const dateStr = new Date(estimate.EstimateDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Group items by Project
+        const groupedItems = items.reduce((acc: any, item: any) => {
+            const key = item.Project || 'GENERAL_NO_PROJECT';
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(item);
+            return acc;
+        }, {} as Record<string, any[]>);
+
+        const generalItems = groupedItems['GENERAL_NO_PROJECT'] || [];
+        const projects = Object.keys(groupedItems).filter(k => k !== 'GENERAL_NO_PROJECT').sort((a, b) => a.localeCompare(b, 'ja'));
 
         return (
             <div className="print-container bg-white text-black p-8 max-w-[210mm] mx-auto min-h-[297mm] relative text-sm">
-                <div className="bg-green-700 text-white text-center py-2 text-2xl font-bold tracking-[1em] mb-8 print:bg-green-700 print-color-adjust">
-                    {t('estimates_title', '見積書')}
+                {/* Header Title */}
+                <div className="bg-green-600 text-white text-center py-2 text-2xl font-bold tracking-[1em] mb-8 print:bg-green-600 print-color-adjust">
+                    御見積書
                 </div>
+
+                {/* Top Section */}
                 <div className="flex justify-between items-start mb-8">
+                    {/* Left: Client Info */}
                     <div className="w-[55%]">
                         <div className="text-xl border-b-2 border-black pb-2 mb-4 inline-block min-w-[300px]">
                             {client?.Name} <span className="text-sm ml-2">御中</span>
                         </div>
-                        <div className="mt-4">
+                        <div className="text-xs space-y-1 text-gray-700">
+                            <div>{client?.Address}</div>
+                        </div>
+
+                        <div className="mt-8">
                             <p className="mb-2">下記の通りお見積り申し上げます。</p>
-                            <div className="border-2 border-green-700 rounded flex overflow-hidden">
-                                <div className="bg-green-700 text-white px-4 py-2 flex items-center justify-center font-bold min-w-[120px] print:bg-green-700 print-color-adjust">見積金額</div>
-                                <div className="flex-1 flex items-center justify-end px-4 text-2xl font-bold tracking-wider">¥{total.toLocaleString()}</div>
+                            <div className="border-2 border-green-600 rounded flex overflow-hidden">
+                                <div className="bg-green-600 text-white px-4 py-2 flex items-center justify-center font-bold min-w-[120px] print:bg-green-600 print-color-adjust">
+                                    御見積金額
+                                </div>
+                                <div className="flex-1 flex items-center justify-end px-4 text-2xl font-bold tracking-wider">
+                                    ¥{total.toLocaleString()}
+                                </div>
                             </div>
                         </div>
+
                         <div className="mt-4 text-sm">
                             <p><strong>{t('estimates_valid_until', '有効期限')}:</strong> {estimate.ValidUntil ? new Date(estimate.ValidUntil).toLocaleDateString() : '-'}</p>
                         </div>
                     </div>
+
+                    {/* Right: Company Info */}
                     <div className="w-[40%] text-right">
                         <div className="space-y-1 text-xs">
                             <div className="grid grid-cols-[80px_1fr] mb-2">
                                 <span className="text-gray-500">発行日</span>
-                                <span>{new Date(estimate.EstimateDate).toLocaleDateString()}</span>
+                                <span>{dateStr}</span>
                             </div>
                             <div className="grid grid-cols-[80px_1fr] mb-6">
                                 <span className="text-gray-500">見積番号</span>
                                 <span>{String(estimate.ID).padStart(8, '0')}</span>
                             </div>
                         </div>
+
                         <div className="text-left pl-8 relative">
-                            <div className="absolute top-0 right-4 w-16 h-16 border border-red-300 rounded-full opacity-30 flex items-center justify-center text-red-500 text-xs rotate-[-15deg] print:border-red-300">印</div>
+                            {/* Stamp Placeholder */}
+                            <div className="absolute top-0 right-4 w-16 h-16 border border-red-300 rounded-full opacity-30 flex items-center justify-center text-red-500 text-xs rotate-[-15deg] print:border-red-300">
+                                印
+                            </div>
+
                             <h4 className="text-lg font-bold mb-1">{settings.CompanyName}</h4>
                             <div className="text-xs space-y-0.5 text-gray-700">
                                 <p>{settings.ZipCode}</p>
                                 <p>{settings.Address}</p>
                                 <p>TEL: {settings.Phone}</p>
+                                <p>登録番号: {settings.RegistrationNumber}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <table className="w-full border-collapse border border-green-700 text-xs mb-4">
-                    <thead>
-                        <tr className="bg-green-700 text-white print:bg-green-700 print-color-adjust">
-                            <th className="border border-green-500 py-1 px-2">内訳</th>
-                            <th className="border border-green-500 py-1 px-2 w-12">数量</th>
-                            <th className="border border-green-500 py-1 px-2 w-12">単位</th>
-                            <th className="border border-green-500 py-1 px-2 w-20">単価</th>
-                            <th className="border border-green-500 py-1 px-2 w-24">金額</th>
+                {/* Table */}
+                <table className="w-full border-collapse border border-green-600 text-xs mb-4">
+                    <thead className="print:table-header-group">
+                        <tr className="bg-green-600 text-white print:bg-green-600 print-color-adjust">
+                            <th className="border border-green-400 py-1 px-2 w-16">日付</th>
+                            <th className="border border-green-400 py-1 px-2">内容</th>
+                            <th className="border border-green-400 py-1 px-2 w-16">税率</th>
+                            <th className="border border-green-400 py-1 px-2 w-12">数量</th>
+                            <th className="border border-green-400 py-1 px-2 w-12">{t('invoices_unit')}</th>
+                            <th className="border border-green-400 py-1 px-2 w-20">単価</th>
+                            <th className="border border-green-400 py-1 px-2 w-24">金額</th>
                         </tr>
                     </thead>
+                    {/* General Items */}
+                    {generalItems.length > 0 && (
+                        <tbody>
+                            {generalItems.map((item: any, idx: number) => (
+                                <tr key={'gen-' + idx} className="text-center">
+                                    <td className="border border-green-600 py-1">
+                                        {/* Date column often empty for estimates items created in UI, but if exists show it */}
+                                        -
+                                    </td>
+                                    <td className="border border-green-600 py-1 px-2 text-left">
+                                        {item.ProductName}
+                                        {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
+                                    </td>
+                                    <td className="border border-green-600 py-1">{item.TaxRate || 10}%</td>
+                                    <td className="border border-green-600 py-1">{item.Quantity}</td>
+                                    <td className="border border-green-600 py-1">{item.Unit || '-'}</td>
+                                    <td className="border border-green-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
+                                    <td className="border border-green-600 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    )}
+
+                    {/* Project Items */}
+                    {projects.map(project => (
+                        <tbody key={project} className="print:break-inside-avoid">
+                            {groupedItems[project].map((item: any, idx: number) => (
+                                <tr key={project + idx} className="text-center">
+                                    <td className="border border-green-600 py-1"> - </td>
+                                    <td className="border border-green-600 py-1 px-2 text-left">
+                                        {item.ProductName}
+                                        {item.Remarks && <span className="text-[10px] text-gray-500 ml-2">({item.Remarks})</span>}
+                                    </td>
+                                    <td className="border border-green-600 py-1">{item.TaxRate || 10}%</td>
+                                    <td className="border border-green-600 py-1">{item.Quantity}</td>
+                                    <td className="border border-green-600 py-1">{item.Unit || '-'}</td>
+                                    <td className="border border-green-600 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
+                                    <td className="border border-green-600 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                            <tr className="text-center font-bold bg-green-50/50 print:bg-transparent">
+                                <td className="border border-green-600 py-1 print:border-x-green-600" colSpan={7}>
+                                    ----- {project} -----
+                                </td>
+                            </tr>
+                        </tbody>
+                    ))}
+
+                    {/* Empty Rows */}
                     <tbody>
-                        {items.map((item: any, idx: number) => (
-                            <tr key={idx}>
-                                <td className="border border-green-700 py-1 px-2">{item.ProductName} {item.Remarks ? `(${item.Remarks})` : ''}</td>
-                                <td className="border border-green-700 py-1 text-center">{item.Quantity}</td>
-                                <td className="border border-green-700 py-1 text-center">{item.Unit}</td>
-                                <td className="border border-green-700 py-1 text-right px-2">¥{item.UnitPrice.toLocaleString()}</td>
-                                <td className="border border-green-700 py-1 text-right px-2">¥{(item.Quantity * item.UnitPrice).toLocaleString()}</td>
+                        {Array.from({ length: Math.max(0, 10 - items.length - projects.length) }).map((_, i) => (
+                            <tr key={`empty - ${i} `} className="text-center h-6">
+                                <td className="border border-green-600"></td>
+                                <td className="border border-green-600"></td>
+                                <td className="border border-green-600"></td>
+                                <td className="border border-green-600"></td>
+                                <td className="border border-green-600"></td>
+                                <td className="border border-green-600"></td>
+                                <td className="border border-green-600"></td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-                <div className="mt-8 border border-green-700 rounded min-h-[100px] p-2">
-                    <div className="bg-green-700 text-white text-xs px-2 py-0.5 inline-block rounded mb-2 print:bg-green-700 print-color-adjust">備考</div>
+
+                {/* Summary Table */}
+                <div className="flex justify-end">
+                    <table className="w-[300px] border-collapse border border-green-600 text-xs text-center">
+                        <thead>
+                            <tr className="bg-green-600 text-white print:bg-green-600 print-color-adjust">
+                                <th className="py-1">税率区分</th>
+                                <th className="py-1">消費税</th>
+                                <th className="py-1">金額（税抜）</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td className="border border-green-600 py-1">10%対象</td>
+                                <td className="border border-green-600 py-1">¥{standardTax.toLocaleString()}</td>
+                                <td className="border border-green-600 py-1">¥{standardSubtotal.toLocaleString()}</td>
+                            </tr>
+                            {reducedSubtotal > 0 && (
+                                <tr>
+                                    <td className="border border-green-600 py-1">8%対象</td>
+                                    <td className="border border-green-600 py-1">¥{reducedTax.toLocaleString()}</td>
+                                    <td className="border border-green-600 py-1">¥{reducedSubtotal.toLocaleString()}</td>
+                                </tr>
+                            )}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td className="bg-green-600 text-white font-bold py-1 print:bg-green-600 print-color-adjust" colSpan={2}>合計</td>
+                                <td className="border border-green-600 py-1 font-bold">¥{total.toLocaleString()}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                {/* Remarks */}
+                <div className="mt-8 border border-green-600 rounded min-h-[100px] p-2">
+                    <div className="bg-green-600 text-white text-xs px-2 py-0.5 inline-block rounded mb-2 print:bg-green-600 print-color-adjust">備考</div>
                     <p className="text-xs">{estimate.Remarks}</p>
                 </div>
             </div>
@@ -587,6 +741,7 @@ const Estimates = () => {
                             <Grid container spacing={3} sx={{ mb: 4 }}>
                                 <Grid size={{ xs: 12, md: 4 }}>
                                     <Autocomplete
+                                        noOptionsText={t('common.no_options', 'No options')}
                                         options={clients.filter(c => c.IsActive)}
                                         getOptionLabel={c => c.Name}
                                         value={clients.find(c => c.ID === selectedClientId) || null}
@@ -635,6 +790,7 @@ const Estimates = () => {
                                         <TableRow>
                                             <TableCell>{t('estimates_item_product')}</TableCell>
                                             <TableCell width={100}>{t('estimates_item_qty')}</TableCell>
+                                            <TableCell width={80}>{t('invoices_unit', 'Unit')}</TableCell>
                                             <TableCell width={140}>{t('estimates_item_price')}</TableCell>
                                             <TableCell width={140} align="right">{t('estimates_item_total')}</TableCell>
                                             <TableCell width={50}></TableCell>
@@ -675,6 +831,35 @@ const Estimates = () => {
                                                             fullWidth size="small"
                                                             variant="standard"
                                                         />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                            <Autocomplete
+                                                                freeSolo
+                                                                options={units.map(u => u.Name)}
+                                                                value={item.Unit || ''}
+                                                                onInputChange={(_, val) => updateItem(idx, 'Unit', val)}
+                                                                renderInput={(params) => (
+                                                                    <TextField
+                                                                        {...params}
+                                                                        fullWidth
+                                                                        size="small"
+                                                                        variant="standard"
+                                                                        placeholder={t('invoices_unit')}
+                                                                    />
+                                                                )}
+                                                                fullWidth
+                                                                noOptionsText={t('common.no_options', 'No options')}
+                                                            />
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => setIsUnitManagerOpen(true)}
+                                                                sx={{ ml: 0.5, p: 0.5 }}
+                                                                title={t('unit_manage', 'Manage Units')}
+                                                            >
+                                                                <SettingsIcon fontSize="small" sx={{ fontSize: '1rem' }} />
+                                                            </IconButton>
+                                                        </Box>
                                                     </TableCell>
                                                     <TableCell>
                                                         <TextField
@@ -753,7 +938,7 @@ const Estimates = () => {
                                     } as any)}
                                     sx={{ whiteSpace: 'nowrap', height: 40 }}
                                 >
-                                    {t('common.add_line', 'Add Line')}
+                                    {t('invoices_add_line', 'Add Line')}
                                 </Button>
                             </Box>
 
@@ -791,23 +976,50 @@ const Estimates = () => {
                 </Dialog>
 
                 {/* Preview Dialog */}
-                <Dialog fullScreen open={Boolean(viewEstimate)} onClose={() => setViewEstimate(null)}>
+                <Dialog fullScreen open={Boolean(viewEstimate)} onClose={() => setViewEstimate(null)} PaperProps={{ sx: { bgcolor: 'background.default' } }}>
                     {viewEstimate && (
-                        <div className="flex flex-col items-center p-4 min-h-screen bg-gray-50 dark:bg-gray-900 overflow-y-auto w-full">
-                            <div className="w-full max-w-4xl flex justify-between items-center mb-6 print:hidden sticky top-0 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm z-10 py-3 px-6 rounded-b-xl border-x border-b border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300">
-                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t('estimates_preview', 'Preview')}</h2>
-                                <div className="flex gap-2">
-                                    <Button variant="contained" startIcon={<PrintIcon />} onClick={() => window.print()}>{t('common.print')}</Button>
-                                    <Button variant="contained" color="secondary" startIcon={<EditIcon />} onClick={() => handleEdit(viewEstimate)}>{t('common.edit')}</Button>
-                                    <Button variant="contained" color="primary" startIcon={<TransformIcon />} onClick={() => handleConvert(viewEstimate)}>{t('estimates_convert', 'Convert')}</Button>
-                                    <Button variant="outlined" onClick={() => setViewEstimate(null)}>{t('common.close')}</Button>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+                            {/* Sticky Header matching Invoices.tsx style */}
+                            <Box sx={{
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 100,
+                                bgcolor: 'background.paper',
+                                borderBottom: 1,
+                                borderColor: 'divider',
+                                px: 3,
+                                py: 2,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                '@media print': { display: 'none' }
+                            }}>
+                                <Typography variant="h5" fontWeight="bold" color="primary">
+                                    {t('estimates_preview', 'Preview')}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                    <Button variant="contained" startIcon={<PrintIcon />} onClick={() => window.print()}>
+                                        {t('common.print')}
+                                    </Button>
+                                    <Button variant="contained" color="secondary" startIcon={<EditIcon />} onClick={() => handleEdit(viewEstimate)}>
+                                        {t('common.edit')}
+                                    </Button>
+                                    <Button variant="contained" color="primary" startIcon={<TransformIcon />} onClick={() => handleConvert(viewEstimate)}>
+                                        {t('estimates_convert', 'Convert')}
+                                    </Button>
+                                    <Button variant="contained" color="inherit" onClick={() => setViewEstimate(null)} sx={{ bgcolor: 'grey.700', color: 'white', '&:hover': { bgcolor: 'grey.800' } }}>
+                                        {t('common.close')}
+                                    </Button>
+                                </Box>
+                            </Box>
+
+                            <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 4, display: 'flex', justifyContent: 'center', backgroundColor: '#f0f2f5' }}>
+                                <div className="bg-white shadow-lg print:shadow-none mb-8">
+                                    <PrintView estimate={viewEstimate} />
                                 </div>
-                            </div>
-                            <div className="bg-white shadow-2xl w-full max-w-[210mm] print:shadow-none mb-8">
-                                <PrintView estimate={viewEstimate} />
-                            </div>
+                            </Box>
                             <style>{`@media print { .print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; } }`}</style>
-                        </div>
+                        </Box>
                     )}
                 </Dialog>
 
@@ -835,6 +1047,45 @@ const Estimates = () => {
                         <Typography variant="h6">{t('converting', 'Converting...')}</Typography>
                     </Box>
                 </Backdrop>
+
+                {/* Unit Manager Dialog */}
+                <Dialog open={isUnitManagerOpen} onClose={() => setIsUnitManagerOpen(false)} maxWidth="xs" fullWidth>
+                    <Box sx={{ p: 2 }}>
+                        <Typography variant="h6" gutterBottom>{t('unit_manage', 'Manage Units')}</Typography>
+                        <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                            {units.length === 0 ? <Typography variant="body2" color="text.secondary">{t('units_no_saved', 'No saved units.')}</Typography> : (
+                                units.map(u => (
+                                    <Box key={u.ID} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: '1px solid #eee' }}>
+                                        <Typography>{u.Name}</Typography>
+                                        <IconButton size="small" color="error" onClick={() => {
+                                            setConfirmDialog({
+                                                open: true,
+                                                title: t('common.delete', 'Delete Unit'),
+                                                message: t('common.delete_confirm', { item: u.Name }),
+                                                onConfirm: async () => {
+                                                    setIsDeleting(true);
+                                                    try {
+                                                        await unitService.delete(u.ID);
+                                                        const updated = await unitService.getAll();
+                                                        setUnits(updated);
+                                                        setConfirmDialog(p => ({ ...p, open: false }));
+                                                    } finally {
+                                                        setIsDeleting(false);
+                                                    }
+                                                }
+                                            });
+                                        }}>
+                                            <DeleteIcon fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+                                ))
+                            )}
+                        </Box>
+                        <Box sx={{ mt: 2, textAlign: 'right' }}>
+                            <Button onClick={() => setIsUnitManagerOpen(false)}>{t('common.close', 'Close')}</Button>
+                        </Box>
+                    </Box>
+                </Dialog>
             </Box>
         </PageTransition>
     );

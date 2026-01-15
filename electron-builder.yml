@@ -3,15 +3,17 @@ productName: Sales Manager
 directories:
   output: release/${version}
 asar: false
-# files:
-#   - dist-electron/**/*
-#   - dist/**/*
-#   - package.json
-#   - node_modules/**/*
-# win:
-#   target: nsis
-#   icon: resources/icon.ico
-# nsis:
-#   oneClick: false
-#   allowToChangeInstallationDirectory: true
-#   shortcutName: Sales Manager
+# asarUnpack:
+#   - "**/node_modules/node-adodb/**/*"
+files:
+  - dist-electron/**/*
+  - dist/**/*
+  - package.json
+  # - node_modules/**/* # Handled by asar/asarUnpack implicitly for dependencies
+extraResources:
+  - from: "node_modules/node-adodb/lib/adodb.js"
+    to: "adodb.js"
+win:
+  target: dir
+  icon: resources/icon.ico
+

@@ -1442,7 +1442,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                     <Box sx={{ p: 2 }}>
                         <Typography variant="h6" gutterBottom>{t('unit_manage', 'Manage Units')}</Typography>
                         <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
-                            {units.length === 0 ? <Typography variant="body2" color="text.secondary">No saved units.</Typography> : (
+                            {units.length === 0 ? <Typography variant="body2" color="text.secondary">{t('units_no_saved', 'No saved units.')}</Typography> : (
                                 units.map(u => (
                                     <Box key={u.ID} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: '1px solid #eee' }}>
                                         <Typography>{u.Name}</Typography>

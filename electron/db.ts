@@ -14,6 +14,11 @@ const DB_PATH = isPackaged
 console.log('Database Path:', DB_PATH);
 
 // 初始化 ADODB 连接
+if (isPackaged) {
+  // Fix for "Spawn cscript error" in packaged app
+  // We copy adodb.js to resources/adodb.js and point to it explicitly
+  ADODB.PATH = path.join(process.resourcesPath, 'adodb.js');
+}
 // 对于 .accdb 使用 'Microsoft.ACE.OLEDB.12.0'
 const rawConnection = ADODB.open(`Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${DB_PATH};Persist Security Info=False;`, true);
 
@@ -220,6 +225,11 @@ async function createSchema() {
     // Add Stock column if missing
     try {
       await rawConnection.execute(`ALTER TABLE Products ADD COLUMN Stock INT DEFAULT 0`);
+    } catch (e) { /* Column likely exists */ }
+
+    // Add Fax column to Clients if missing (New Requirement)
+    try {
+      await rawConnection.execute(`ALTER TABLE Clients ADD COLUMN Fax VARCHAR(50)`);
     } catch (e) { /* Column likely exists */ }
 
     // 从现有产品填充项目表

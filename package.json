@@ -1,5 +1,6 @@
 {
   "name": "sales-manager",
+  "productName": "Sales Manager",
   "private": true,
   "version": "0.1.0",
   "type": "module",

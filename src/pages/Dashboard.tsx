@@ -184,7 +184,7 @@ const Dashboard = () => {
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
-                                    <Tooltip formatter={(value: number) => `¥${value.toLocaleString()}`} />
+                                    <Tooltip formatter={(value: any) => `¥${value.toLocaleString()}`} />
                                     <Legend />
                                 </PieChart>
                             </ResponsiveContainer>
@@ -206,7 +206,7 @@ const Dashboard = () => {
                                     <YAxis type="category" dataKey="name" width={100} stroke={theme.palette.text.secondary} />
                                     <Tooltip
                                         cursor={false}
-                                        formatter={(value: number | undefined) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
+                                        formatter={(value: any) => [`¥${(value || 0).toLocaleString()}`, t('dashboard_monthly_sales', 'Sales')]}
                                         contentStyle={{
                                             backgroundColor: theme.palette.background.paper,
                                             border: `1px solid ${theme.palette.divider}`,

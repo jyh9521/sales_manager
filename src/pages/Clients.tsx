@@ -7,7 +7,7 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Dialog, DialogTitle, DialogContent, DialogActions,
     Switch, Chip, TextField, TablePagination, Card, CardContent, CardActions,
-    useTheme, useMediaQuery, Grid
+    useTheme, useMediaQuery, Grid, CircularProgress, Snackbar, Alert
 } from '@mui/material';
 import LoadingOverlay from '../components/LoadingOverlay';
 import {
@@ -23,7 +23,19 @@ const Clients = () => {
     const { t } = useTranslation();
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false); // New saving state
     const [showInactive, setShowInactive] = useState(false);
+
+    // Toast State
+    const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
+        open: false,
+        message: '',
+        severity: 'success'
+    });
+
+    const showToast = (message: string, severity: 'success' | 'error' = 'success') => {
+        setToast({ open: true, message, severity });
+    };
 
     // 分页
     const [page, setPage] = useState(0);
@@ -64,13 +76,20 @@ const Clients = () => {
     }, []);
 
     const loadData = async () => {
-        const data = await clientService.getAll();
-        setClients(data);
-        setLoading(false);
+        try {
+            const data = await clientService.getAll();
+            setClients(data);
+        } catch (error) {
+            console.error('Failed to load clients:', error);
+            showToast(t('common.error', 'Error occurred'), 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSave = async () => {
         if (!currentClient.Name) return;
+        setSaving(true);
         try {
             if (currentClient.ID) {
                 await clientService.update(currentClient as Client);
@@ -79,8 +98,12 @@ const Clients = () => {
             }
             setIsEditModalOpen(false);
             loadData();
-        } catch (e) {
+            showToast(t('common.success', 'Operation successful'), 'success');
+        } catch (e: any) {
             console.error(e);
+            showToast(t('common.save_error', 'Save failed: ') + (e.message || String(e)), 'error');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -414,6 +437,53 @@ const Clients = () => {
                                 </Box>
                             </Box>
 
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('clients_fax', 'Fax Number')}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <TextField
+                                        size="small"
+                                        placeholder="03"
+                                        value={currentClient.Fax ? currentClient.Fax.split('-')[0] : ''}
+                                        onChange={e => {
+                                            const parts = (currentClient.Fax || '').split('-');
+                                            while (parts.length < 3) parts.push('');
+                                            parts[0] = e.target.value;
+                                            setCurrentClient({ ...currentClient, Fax: parts.join('-') });
+                                        }}
+                                        sx={{ width: '30%' }}
+                                        inputProps={{ style: { textAlign: 'center' } }}
+                                    />
+                                    <Typography>-</Typography>
+                                    <TextField
+                                        size="small"
+                                        placeholder="0000"
+                                        value={currentClient.Fax ? currentClient.Fax.split('-')[1] || '' : ''}
+                                        onChange={e => {
+                                            const parts = (currentClient.Fax || '').split('-');
+                                            while (parts.length < 3) parts.push('');
+                                            parts[1] = e.target.value;
+                                            setCurrentClient({ ...currentClient, Fax: parts.join('-') });
+                                        }}
+                                        sx={{ width: '35%' }}
+                                        inputProps={{ style: { textAlign: 'center' } }}
+                                    />
+                                    <Typography>-</Typography>
+                                    <TextField
+                                        size="small"
+                                        placeholder="0000"
+                                        value={currentClient.Fax ? currentClient.Fax.split('-')[2] || '' : ''}
+                                        onChange={e => {
+                                            const parts = (currentClient.Fax || '').split('-');
+                                            while (parts.length < 3) parts.push('');
+                                            parts[2] = e.target.value;
+                                            setCurrentClient({ ...currentClient, Fax: parts.join('-') });
+                                        }}
+                                        sx={{ width: '35%' }}
+                                        inputProps={{ style: { textAlign: 'center' } }}
+                                    />
+                                </Box>
+                            </Box>
+
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -428,12 +498,36 @@ const Clients = () => {
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={() => setIsEditModalOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
-                        <Button onClick={handleSave} variant="contained" color="primary">{t('common.save', 'Save Client')}</Button>
+                        <Button
+                            onClick={handleSave}
+                            variant="contained"
+                            color="primary"
+                            disabled={saving}
+                            startIcon={saving ? <CircularProgress size={20} color="inherit" /> : null}
+                        >
+                            {saving ? t('common.saving', 'Saving...') : t('common.save', 'Save Client')}
+                        </Button>
                     </DialogActions>
                 </Dialog>
 
 
                 <LoadingOverlay open={loading} />
+
+                {/* 消息提示 */}
+                <Snackbar
+                    open={toast.open}
+                    autoHideDuration={4000}
+                    onClose={() => setToast({ ...toast, open: false })}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                    <Alert
+                        onClose={() => setToast({ ...toast, open: false })}
+                        severity={toast.severity}
+                        sx={{ width: '100%', borderRadius: 2, boxShadow: 3 }}
+                    >
+                        {toast.message}
+                    </Alert>
+                </Snackbar>
             </Box>
         </PageTransition>
     );
