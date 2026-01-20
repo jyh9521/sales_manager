@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import './styles/App.css';
+
 import Products from './pages/Products';
 import Clients from './pages/Clients';
 import Invoices from './pages/Invoices';

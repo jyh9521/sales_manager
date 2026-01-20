@@ -9,7 +9,7 @@ import { execSync } from 'child_process';
 const isPackaged = app.isPackaged;
 const DB_PATH = isPackaged
   ? path.join(app.getPath('userData'), 'sales.accdb')
-  : path.join(process.cwd(), 'sales.accdb');
+  : path.join(process.cwd(), 'resources', 'database', 'sales.accdb');
 
 console.log('Database Path:', DB_PATH);
 

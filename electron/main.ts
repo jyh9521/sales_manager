@@ -396,7 +396,7 @@ app.whenReady().then(async () => {
       const isPackaged = app.isPackaged;
       const dbPath = isPackaged
         ? path.join(app.getPath('userData'), 'sales.accdb')
-        : path.join(process.cwd(), 'sales.accdb');
+        : path.join(process.cwd(), 'resources', 'database', 'sales.accdb');
 
       const fs = await import('fs');
       await fs.promises.copyFile(dbPath, filePath);
@@ -423,7 +423,7 @@ app.whenReady().then(async () => {
       const isPackaged = app.isPackaged;
       const dbPath = isPackaged
         ? path.join(app.getPath('userData'), 'sales.accdb')
-        : path.join(process.cwd(), 'sales.accdb');
+        : path.join(process.cwd(), 'resources', 'database', 'sales.accdb');
 
       const fs = await import('fs');
       // 创建安全备份
@@ -466,7 +466,7 @@ async function tryAutoBackup() {
     const isPackaged = app.isPackaged;
     const dbPath = isPackaged
       ? path.join(app.getPath('userData'), 'sales.accdb')
-      : path.join(process.cwd(), 'sales.accdb');
+      : path.join(process.cwd(), 'resources', 'database', 'sales.accdb');
 
     // 备份文件夹
     let backupDir = config.BackupPath;
