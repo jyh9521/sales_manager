@@ -11,6 +11,12 @@
     "dist",
     "dist-electron"
   ],
+  "extraResources": [
+    {
+      "from": "node_modules/node-adodb/lib/adodb.js",
+      "to": "adodb.js"
+    }
+  ],
   "mac": {
     "target": [
       "dmg"
