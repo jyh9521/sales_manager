@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 build_log.txt
 tsc_output*.txt
+tsc_err*.log
 
 # Dependencies - 依赖包
 node_modules/
@@ -24,7 +25,6 @@ release/
 .env.local
 .env.*.local
 *.local
-# .npmrc
 
 # Editor directories and files - 编辑器配置
 .vscode/*
@@ -36,11 +36,21 @@ release/
 *.njsproj
 *.sln
 *.sw?
+.history/
 
 # System files - 系统冗余文件
 Thumbs.db
 desktop.ini
+.Spotlight-V100
+.Trashes
 
 # Database - 数据库及备份
 *.accdb
+*.laccdb
 *.bak
+
+# Electron Signing - 签名证书 (安全)
+*.pfx
+*.p12
+*.cer
+*.pem
