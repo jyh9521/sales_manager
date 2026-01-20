@@ -15,10 +15,10 @@ i18n
     .use(initReactI18next)
     .init({
         resources,
-        lng: 'ja', // default language
+        lng: 'ja', // 默认语言
         fallbackLng: 'en',
         interpolation: {
-            escapeValue: false, // react already safes from xss
+            escapeValue: false, // react 已经防止 xss
         },
     });
 

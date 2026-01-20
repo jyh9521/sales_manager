@@ -45,7 +45,7 @@ function App() {
 
 
 
-  // Update theme when primaryColor changes
+  // 当 primaryColor 改变时更新主题
   const activeTheme = createTheme({
     palette: {
       primary: { main: primaryColor }
@@ -115,7 +115,7 @@ function App() {
             <Box sx={{
               color: 'white',
               fontWeight: 'bold',
-              // boxShadow: 2 // Removed as requested
+              // boxShadow: 2 // 应要求移除
             }}>S</Box>
             <Typography variant="h6" noWrap component="div" fontWeight="bold">
               SalesManager
@@ -132,7 +132,7 @@ function App() {
                     borderRadius: 2,
                     '&.Mui-selected': {
                       bgcolor: 'primary.light',
-                      color: 'primary.dark', // This might need contrast text fix if theme primary.light is dark
+                      color: 'primary.dark', // 如果主题 primary.light 是深色，可能需要修复对比度文本
                       '&:hover': { bgcolor: 'primary.light' },
                       '& .MuiListItemIcon-root': { color: 'primary.dark' },
                     },
@@ -151,7 +151,7 @@ function App() {
           </Typography>
         </Drawer>
 
-        {/* Main Layout */}
+        {/* 主布局 */}
         <Box component="main" sx={{ flexGrow: 1, height: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column', pt: 8 }}>
           <Box sx={{ flexGrow: 1, p: 0 }}>
             {renderContent()}

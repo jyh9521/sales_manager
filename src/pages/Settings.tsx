@@ -38,10 +38,10 @@ const Settings = () => {
     const handleSave = async () => {
         try {
             await settingsService.save(settings);
-            // setStatus(t('settings_save_success', 'Settings saved successfully!'));
+            // setStatus(t('settings_save_success', '设置保存成功！'));
             showToast(t('settings_save_success', 'Settings saved successfully!'), 'success');
-            // Reload only if theme changed? For now, we rely on state updates or soft refresh if needed.
-            // window.location.reload(); // Removed to prevent jarring UX
+            // 仅在主题更改时重新加载，如果需要，将依赖状态更新或软刷新。
+            // window.location.reload(); // 移除以避免突兀的用户体验
         } catch (e) {
             showToast(t('settings_save_error', 'Error saving settings: ') + e, 'error');
         }
@@ -94,10 +94,10 @@ const Settings = () => {
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto space-y-8 pb-24"> {/* Added pb-24 for FAB space */}
+        <div className="p-6 max-w-4xl mx-auto space-y-8 pb-24"> {/* 添加 pb-24 用于 FAB 空间 */}
             <h2 className="text-2xl font-bold text-gray-800">{t('settings', 'Settings')}</h2>
 
-            {/* Company Info */}
+            {/* 公司信息 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-lg font-semibold text-gray-700 mb-6 border-b pb-2">{t('settings_company_info', 'My Company Info (Shown on Invoices)')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -259,18 +259,18 @@ const Settings = () => {
                     </div>
                 </div>
 
-                {/* Removed individual save button */}
+                {/* 移除单独的保存按钮 */}
             </div>
 
-            {/* Data Management */}
+            {/* 数据管理 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold text-gray-700">{t('settings_data_management', 'Data Management')}</h3>
-                    {/* Removed individual save button */}
+                    {/* 移除单独的保存按钮 */}
                 </div>
 
                 <div className="space-y-6">
-                    {/* Auto Backup Section */}
+                    {/* 自动备份部分 */}
                     <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
                         <div className="flex items-center justify-between mb-4">
                             <div>
@@ -306,9 +306,9 @@ const Settings = () => {
                         )}
                     </div>
 
-                    {/* Manual Operations */}
+                    {/* 手动操作 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Export */}
+                        {/* 导出 */}
                         <div className="border border-gray-200 rounded-xl p-4 flex flex-col justify-between hover:border-indigo-300 transition-colors">
                             <div>
                                 <h4 className="font-semibold text-gray-800 text-sm mb-1">{t('settings_backup_db', 'Backup Database')}</h4>
@@ -319,7 +319,7 @@ const Settings = () => {
                             </button>
                         </div>
 
-                        {/* Import */}
+                        {/* 导入 */}
                         <div className="border border-gray-200 rounded-xl p-4 flex flex-col justify-between hover:border-orange-300 transition-colors">
                             <div>
                                 <h4 className="font-semibold text-gray-800 text-sm mb-1">{t('settings_restore_db', 'Restore Database')}</h4>
@@ -372,7 +372,7 @@ const Settings = () => {
                 </Alert>
             </Snackbar>
 
-            {/* Floating Action Button for Global Save */}
+            {/* 用于全局保存的浮动操作按钮 */}
             <div className="fixed bottom-8 right-8 z-50">
                 <Tooltip title={t('settings_save', 'Save Settings')} arrow placement="left">
                     <Fab

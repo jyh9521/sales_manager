@@ -15,8 +15,8 @@ console.log('Database Path:', DB_PATH);
 
 // 初始化 ADODB 连接
 if (isPackaged) {
-  // Fix for "Spawn cscript error" in packaged app
-  // We copy adodb.js to resources/adodb.js and point to it explicitly
+  // 修复打包应用中的 "Spawn cscript error"
+  // 将 adodb.js 复制到 resources/adodb.js 并显式指向它
   ADODB.PATH = path.join(process.resourcesPath, 'adodb.js');
 }
 // 对于 .accdb 使用 'Microsoft.ACE.OLEDB.12.0'
@@ -35,17 +35,16 @@ const connection = {
         // 仅在 spawn 相关错误或通用进程失败时重试
         if (e.message && (e.message.includes('Spawn') || e.message.includes('process'))) {
           console.warn(`Retry ${i + 1}/${maxRetries} for SQL: ${sql.substring(0, 50)}...`);
-          await new Promise(r => setTimeout(r, 200 * (i + 1))); // Incremental backoff
+          await new Promise(r => setTimeout(r, 200 * (i + 1))); // 增量退避
           continue;
         }
-        throw e; // Throw other errors immediately
+        throw e; // 立即抛出其他错误
       }
     }
     throw lastError;
   },
   async execute(sql: string): Promise<any> {
     // EXECUTE 上的重试导致重复插入，因为 'Spawn Error' 是误报。
-    // 我们绝对不能盲目重试非幂等命令。
     try {
       return await rawConnection.execute(sql);
     } catch (e: any) {
@@ -64,7 +63,7 @@ export async function initDB() {
     console.log('Creating new Access database...');
     try {
       // 使用 PowerShell/ADOX 创建 .accdb 文件
-      // 这需要机器上安装了 Access 驱动程序。
+      // 需要安装 Access 驱动。
       const cmd = `$catalog = New-Object -ComObject ADOX.Catalog; $catalog.Create('Provider=Microsoft.ACE.OLEDB.12.0;Data Source=${DB_PATH}');`;
       execSync(`powershell -Command "${cmd}"`);
       console.log('Database file created successfully.');
@@ -179,27 +178,27 @@ async function createSchema() {
     `).catch(() => { });
 
     // --- 现有数据库的迁移 ---
-    // Add Status column if missing
+    // 如果缺少 Status 列则添加
     try {
       await rawConnection.execute(`ALTER TABLE Invoices ADD COLUMN Status VARCHAR(50) DEFAULT 'Unpaid'`);
     } catch (e) { /* Column likely exists */ }
 
-    // Add DueDate column if missing
+    // 如果缺少 DueDate 列则添加
     try {
       await rawConnection.execute(`ALTER TABLE Invoices ADD COLUMN DueDate DATETIME`);
     } catch (e) { /* Column likely exists */ }
 
-    // Add ExampleField column if missing
+    // 如果缺少 ExampleField 列则添加
     try {
       await rawConnection.execute(`ALTER TABLE Invoices ADD COLUMN ExampleField MEMO`);
     } catch (e) { /* Column likely exists */ }
 
-    // Add Items column if missing (for JSON storage)
+    // 如果缺少 Items 列则添加（用于 JSON 存储）
     try {
       await rawConnection.execute(`ALTER TABLE Invoices ADD COLUMN Items MEMO`);
     } catch (e) { /* Column likely exists */ }
 
-    // Add Project column if missing
+    // 如果缺少 Project 列则添加
     try {
       await rawConnection.execute(`ALTER TABLE Products ADD COLUMN Project VARCHAR(255)`);
     } catch (e) { /* Column likely exists */ }
@@ -216,18 +215,18 @@ async function createSchema() {
       await rawConnection.execute('ALTER TABLE InvoiceItems ADD COLUMN TaxRate INT DEFAULT 10');
     } catch (e) { }
 
-    // Add IsActive column if missing
+    // 如果缺少 IsActive 列则添加
     try {
       await rawConnection.execute(`ALTER TABLE Products ADD COLUMN IsActive BIT DEFAULT 1`);
       await rawConnection.execute(`UPDATE Products SET IsActive = 1 WHERE IsActive IS NULL`);
     } catch (e) { /* Column likely exists */ }
 
-    // Add Stock column if missing
+    // 如果缺少 Stock 列则添加
     try {
       await rawConnection.execute(`ALTER TABLE Products ADD COLUMN Stock INT DEFAULT 0`);
     } catch (e) { /* Column likely exists */ }
 
-    // Add Fax column to Clients if missing (New Requirement)
+    // 如果客户表缺少 Fax 列则添加（新需求）
     try {
       await rawConnection.execute(`ALTER TABLE Clients ADD COLUMN Fax VARCHAR(50)`);
     } catch (e) { /* Column likely exists */ }

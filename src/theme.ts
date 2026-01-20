@@ -3,7 +3,7 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
     palette: {
         primary: {
-            main: '#4338ca', // Indigo-700 (matching existing Tailwind indigo-700 approx)
+            main: '#4338ca', // Indigo-700 (大致匹配现有的 Tailwind indigo-700)
         },
         secondary: {
             main: '#3b82f6', // Blue-500
@@ -27,7 +27,7 @@ const theme = createTheme({
         MuiButton: {
             styleOverrides: {
                 root: {
-                    textTransform: 'none', // Disable uppercase for buttons
+                    textTransform: 'none', // 禁用按钮大写
                 },
             },
         },

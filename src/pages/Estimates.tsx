@@ -378,7 +378,7 @@ const Estimates = () => {
     const PrintView = ({ estimate }: { estimate: Estimate }) => {
         const client = clients.find(c => c.ID === estimate.ClientID);
 
-        // Calculate totals on the fly like Invoices
+        // 像发票一样即时计算合计
         const items = (estimate.Items as any) || [];
         const standardItems = items.filter((i: any) => (i.TaxRate || 10) === 10);
         const reducedItems = items.filter((i: any) => (i.TaxRate || 10) === 8);
@@ -392,7 +392,7 @@ const Estimates = () => {
 
         const dateStr = new Date(estimate.EstimateDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Group items by Project
+        // 按项目分组
         const groupedItems = items.reduce((acc: any, item: any) => {
             const key = item.Project || 'GENERAL_NO_PROJECT';
             if (!acc[key]) acc[key] = [];
@@ -405,14 +405,14 @@ const Estimates = () => {
 
         return (
             <div className="print-container bg-white text-black p-8 max-w-[210mm] mx-auto min-h-[297mm] relative text-sm">
-                {/* Header Title */}
+                {/* 标题 */}
                 <div className="bg-green-600 text-white text-center py-2 text-2xl font-bold tracking-[1em] mb-8 print:bg-green-600 print-color-adjust">
                     御見積書
                 </div>
 
-                {/* Top Section */}
+                {/* 顶部区域 */}
                 <div className="flex justify-between items-start mb-8">
-                    {/* Left: Client Info */}
+                    {/* 左侧：客户信息 */}
                     <div className="w-[55%]">
                         <div className="text-xl border-b-2 border-black pb-2 mb-4 inline-block min-w-[300px]">
                             {client?.Name} <span className="text-sm ml-2">御中</span>
@@ -438,7 +438,7 @@ const Estimates = () => {
                         </div>
                     </div>
 
-                    {/* Right: Company Info */}
+                    {/* 右侧：公司信息 */}
                     <div className="w-[40%] text-right">
                         <div className="space-y-1 text-xs">
                             <div className="grid grid-cols-[80px_1fr] mb-2">
@@ -452,7 +452,7 @@ const Estimates = () => {
                         </div>
 
                         <div className="text-left pl-8 relative">
-                            {/* Stamp Placeholder */}
+                            {/* 印章占位符 */}
                             <div className="absolute top-0 right-4 w-16 h-16 border border-red-300 rounded-full opacity-30 flex items-center justify-center text-red-500 text-xs rotate-[-15deg] print:border-red-300">
                                 印
                             </div>
@@ -468,7 +468,7 @@ const Estimates = () => {
                     </div>
                 </div>
 
-                {/* Table */}
+                {/* 表格 */}
                 <table className="w-full border-collapse border border-green-600 text-xs mb-4">
                     <thead className="print:table-header-group">
                         <tr className="bg-green-600 text-white print:bg-green-600 print-color-adjust">
@@ -481,13 +481,13 @@ const Estimates = () => {
                             <th className="border border-green-400 py-1 px-2 w-24">金額</th>
                         </tr>
                     </thead>
-                    {/* General Items */}
+                    {/* 通用项目 */}
                     {generalItems.length > 0 && (
                         <tbody>
                             {generalItems.map((item: any, idx: number) => (
                                 <tr key={'gen-' + idx} className="text-center">
                                     <td className="border border-green-600 py-1">
-                                        {/* Date column often empty for estimates items created in UI, but if exists show it */}
+                                        {/* 界面创建的估价单项目日期通常为空，但如果存在则显示 */}
                                         -
                                     </td>
                                     <td className="border border-green-600 py-1 px-2 text-left">
@@ -504,7 +504,7 @@ const Estimates = () => {
                         </tbody>
                     )}
 
-                    {/* Project Items */}
+                    {/* 项目条目 */}
                     {projects.map(project => (
                         <tbody key={project} className="print:break-inside-avoid">
                             {groupedItems[project].map((item: any, idx: number) => (
@@ -529,7 +529,7 @@ const Estimates = () => {
                         </tbody>
                     ))}
 
-                    {/* Empty Rows */}
+                    {/* 空行 */}
                     <tbody>
                         {Array.from({ length: Math.max(0, 10 - items.length - projects.length) }).map((_, i) => (
                             <tr key={`empty - ${i} `} className="text-center h-6">
@@ -545,7 +545,7 @@ const Estimates = () => {
                     </tbody>
                 </table>
 
-                {/* Summary Table */}
+                {/* 汇总表 */}
                 <div className="flex justify-end">
                     <table className="w-[300px] border-collapse border border-green-600 text-xs text-center">
                         <thead>
@@ -578,7 +578,7 @@ const Estimates = () => {
                     </table>
                 </div>
 
-                {/* Remarks */}
+                {/* 备注 */}
                 <div className="mt-8 border border-green-600 rounded min-h-[100px] p-2">
                     <div className="bg-green-600 text-white text-xs px-2 py-0.5 inline-block rounded mb-2 print:bg-green-600 print-color-adjust">備考</div>
                     <p className="text-xs">{estimate.Remarks}</p>
@@ -696,14 +696,14 @@ const Estimates = () => {
                     />
                 </TableContainer>
 
-                {/* Create/Edit Dialog */}
+                {/* 创建/编辑对话框 */}
                 <Dialog
                     fullScreen
                     open={isCreateMode}
                     onClose={() => setIsCreateMode(false)}
                     PaperProps={{ sx: { bgcolor: 'background.paper' } }}
                 >
-                    {/* Sticky Header for Create/Edit */}
+                    {/* 创建/编辑的粘性标题 */}
                     <Box sx={{
                         display: 'flex',
                         justifyContent: 'space-between',

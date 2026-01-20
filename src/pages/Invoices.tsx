@@ -46,7 +46,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     // 创建/查看状态
     const [isCreateMode, setIsCreateMode] = useState(false);
     const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
-    const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null); // For Edit Mode
+    const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null); // 用于编辑模式
     const [manualId, setManualId] = useState<string>('');
     const [manualStatus, setManualStatus] = useState<'Unpaid' | 'Paid' | 'Sent'>('Unpaid');
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'InvoiceDate', direction: 'desc' });
@@ -105,7 +105,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
     useEffect(() => {
         loadData();
-    }, [filterClientId]); // Reload if prop changes
+    }, [filterClientId]); // 如果属性改变则重新加载
 
     useEffect(() => {
         if (filterClientId) setSelectedClientId(filterClientId);
@@ -163,7 +163,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             // Ctrl+S 保存
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
-                // Determine if creating or updating
+                // 确定是创建还是更新
                 handleSave(editingInvoice ? 'update' : 'create');
             }
 
@@ -215,7 +215,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         };
 
         console.log('Prepared invoice object:', newInvoice);
-        // Save new units automatically
+        // 自动保存新单位
         for (const item of items) {
             if (item.Unit && !units.find(u => u.Name === item.Unit)) {
                 try {
@@ -225,7 +225,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                 }
             }
         }
-        // Refresh units in background
+        // 后台刷新单位
         unitService.getAll().then(setUnits);
 
         setIsSaving(true);
@@ -274,7 +274,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     const handleBulkDelete = async () => {
         setIsDeleting(true);
         try {
-            // SelectedIds is a Set
+            // SelectedIds 是一个 Set
             const ids = Array.from(selectedInvoiceIds);
             for (const id of ids) {
                 await invoiceService.delete(id);
@@ -314,7 +314,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
     };
 
     const addItem = (product?: Product) => {
-        // Logic to copy previous date and unit
+        // 复制上一个日期和单位的逻辑
         let defaultDate = invoiceDate;
         let defaultUnit = '';
         if (items.length > 0) {
@@ -322,7 +322,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             if (last.ItemDate) defaultDate = last.ItemDate;
             if (last.Unit) {
                 defaultUnit = last.Unit;
-                // Auto-save the unit from the previous line if it's new
+                // 如果是新的，自动保存上一行的单位
                 saveUnit(last.Unit);
             }
         }
@@ -339,7 +339,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             TaxRate: product?.TaxRate || 10
         };
         setItems([...items, newItem]);
-        setSearchTerm(''); // Clear search after adding
+        setSearchTerm(''); // 添加后清除搜索
     };
 
     const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
@@ -352,8 +352,8 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         setItems(items.filter((_, i) => i !== index));
     };
 
-    // Filters
-    // Filters & Sorting
+    // 筛选器
+    // 筛选与排序
     const sortedInvoices = [...invoices].filter(inv => {
         const matchesClient = filterClientId ? inv.ClientID === filterClientId : true;
         const invMonth = new Date(inv.InvoiceDate).toISOString().slice(0, 7);
@@ -386,10 +386,10 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             comparison *= -1;
         }
 
-        // Secondary Sort: Always sort by ID Descending if primary sort is equal (or for stability)
-        // If sorting by ID, no need for secondary.
+        // 二级排序：如果主排序相等（或为了稳定性），总是按 ID 降序排序
+        // 如果按 ID 排序，则不需要二级排序。
         if (comparison === 0 && sortConfig.key !== 'ID') {
-            return b.ID - a.ID; // Newest ID first
+            return b.ID - a.ID; // 最新 ID 优先
         }
 
         return comparison;
@@ -400,32 +400,32 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
         }
-        // Default to desc for new sorts on Date or ID or Amount usually? 
-        // Standard behavior: first click ASC. User can double click for DESC.
-        // But for Dates, DESC is usually preferred first. Let's stick to standard toggle.
-        // Wait, if I'm currently 'desc' (default date), next click should be 'asc'.
+        // 当对日期、ID 或金额进行新排序时，通常默认为降序？
+        // 标准行为：第一次点击 ASC。用户可以双击进行 DESC。
+        // 但对于日期，通常首选 DESC。让我们坚持标准切换。
+        // 等等，如果我当前是 'desc'（默认日期），下次点击应该是 'asc'。
         if (sortConfig.key === key && sortConfig.direction === 'desc') {
             direction = 'asc';
         } else if (sortConfig.key !== key && (key === 'InvoiceDate' || key === 'ID' || key === 'TotalAmount')) {
-            // For numbers/dates, users often want biggest/newest first
+            // 对于数字/日期，用户通常希望最大的/最新的在前面
             direction = 'desc';
         }
 
         setSortConfig({ key, direction });
     };
 
-    // Product Filter Logic
+    // 产品筛选逻辑
     const availableProducts = products.filter(p => {
         if (!p.IsActive) return false;
-        // Filter by text search
+        // 按文本搜索筛选
         if (searchTerm && !p.Name.toLowerCase().includes(searchTerm.toLowerCase()) && !p.Code?.toLowerCase().includes(searchTerm.toLowerCase())) {
             return false;
         }
-        // Filter by Client Binding
+        // 按客户绑定筛选
         if (selectedClientId && p.ClientIDs && p.ClientIDs.length > 0) {
             return p.ClientIDs.includes(selectedClientId);
         }
-        // If ClientIDs is empty, it's available to all? Assume yes.
+        // 如果 ClientIDs 为空，则对所有人可用？假设是的。
         return true;
     });
 
@@ -455,7 +455,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         return subtotal + totalTax;
     };
 
-    // CSV Export
+    // CSV 导出
     const handleExportCSV = (invoice: Invoice) => {
         const headers = [
             t('csv_date', 'Date'),
@@ -481,7 +481,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
             ...rows.map(row => row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(','))
         ].join('\n');
 
-        // Add BOM for Excel equality
+        // 添加 BOM 以保证 Excel 兼容性
         const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         if (link.download !== undefined) {
@@ -501,8 +501,8 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         const selectedInvoices = invoices.filter(inv => selectedInvoiceIds.has(inv.ID));
         if (selectedInvoices.length === 0) return;
 
-        // Base the merged invoice on the most recent one (for client info, etc.)
-        // Ideally they should be from the same client.
+        // 基于最近的发票合并（用于客户信息等）
+        // 理想情况下，它们应该来自同一个客户。
         const base = selectedInvoices[0];
         const allItems: InvoiceItem[] = [];
         let total = 0;
@@ -516,21 +516,21 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
         // Create a temporary Merged Invoice
         const mergedInvoice: Invoice = {
             ...base,
-            ID: 0, // Indicator for merged? or just visually handled
+            ID: 0, // 合并的指示器？还是仅在视觉上处理
             Items: allItems,
             TotalAmount: total,
-            // Maybe concat dates? or just use base date
+            // 也许合并日期？或者只使用基准日期
         };
 
         setViewInvoice(mergedInvoice);
     };
 
-    // -- Print View Component --
+    // -- 打印视图组件 --
     const PrintView = ({ invoice }: { invoice: Invoice }) => {
         const client = clients.find(c => c.ID === invoice.ClientID);
 
-        // Process Tax on the fly for Print View (since invoice.Items might not be in state yet if we just viewing)
-        // Similar logic to calculateTaxSummary
+        // 为打印视图即时处理税费（因为如果只是查看，invoice.Items 可能尚未处于状态中）
+        // 类似于 calculateTaxSummary 的逻辑
         const items = invoice.Items || [];
         const standardItems = items.filter(i => (i.TaxRate || 10) === 10);
         const reducedItems = items.filter(i => (i.TaxRate || 10) === 8);
@@ -544,7 +544,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
         const dateStr = new Date(invoice.InvoiceDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Group items by Project
+        // 按项目分组
         const groupedItems = items.reduce((acc, item) => {
             const key = item.Project || 'GENERAL_NO_PROJECT';
             if (!acc[key]) acc[key] = [];
@@ -557,14 +557,14 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
         return (
             <div className="print-container bg-white text-black p-8 max-w-[210mm] mx-auto min-h-[297mm] relative text-sm">
-                {/* Header Title */}
+                {/* 标题 */}
                 <div className="bg-blue-600 text-white text-center py-2 text-2xl font-bold tracking-[1em] mb-8 print:bg-blue-600 print-color-adjust">
                     御請求書
                 </div>
 
-                {/* Top Section */}
+                {/* 顶部区域 */}
                 <div className="flex justify-between items-start mb-8">
-                    {/* Left: Client Info */}
+                    {/* 左侧：客户信息 */}
                     <div className="w-[55%]">
                         <div className="text-xl border-b-2 border-black pb-2 mb-4 inline-block min-w-[300px]">
                             {client?.Name} <span className="text-sm ml-2">御中</span>
@@ -585,7 +585,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                             </div>
                         </div>
 
-                        {/* Bank Info */}
+                        {/* 银行信息 */}
                         <div className="mt-4 border border-blue-600 rounded text-xs">
                             <div className="flex border-b border-blue-600">
                                 <div className="bg-blue-600 text-white px-2 py-1 w-20 flex items-center justify-center print:bg-blue-600 print-color-adjust">振込先</div>
@@ -605,7 +605,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
 
                     </div>
 
-                    {/* Right: Company Info */}
+                    {/* 右侧：公司信息 */}
                     <div className="w-[40%] text-right">
                         <div className="space-y-1 text-xs">
                             <div className="grid grid-cols-[80px_1fr] mb-2">
@@ -619,7 +619,7 @@ const Invoices = ({ filterClientId }: { filterClientId?: number | null }) => {
                         </div>
 
                         <div className="text-left pl-8 relative">
-                            {/* Stamp Placeholder */}
+                            {/* 印章占位符 */}
                             <div className="absolute top-0 right-4 w-16 h-16 border border-red-300 rounded-full opacity-30 flex items-center justify-center text-red-500 text-xs rotate-[-15deg] print:border-red-300">
                                 印
                             </div>

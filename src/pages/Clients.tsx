@@ -23,10 +23,10 @@ const Clients = () => {
     const { t } = useTranslation();
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false); // New saving state
+    const [saving, setSaving] = useState(false); // 新增保存状态
     const [showInactive, setShowInactive] = useState(false);
 
-    // Toast State
+    // Toast 状态
     const [toast, setToast] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
         open: false,
         message: '',
@@ -371,7 +371,7 @@ const Clients = () => {
                                                         setCurrentClient(prev => ({ ...prev, Address: addr }));
                                                     }
                                                 } catch (err) {
-                                                    // ignore
+                                                    // 忽略
                                                 }
                                             }
                                         }}

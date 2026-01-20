@@ -50,7 +50,7 @@ function createWindow() {
   }
 }
 
-// 当所有窗口关闭时退出应用，除了 macOS。在这里，应用程序及其菜单栏通常会保持活动状态，
+// 当所有窗口关闭时退出应用，除了 macOS。在这里，应用程序及其菜单栏正常应该会保持活动状态，
 // 直到用户使用 Cmd + Q 显式退出。
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {

@@ -33,7 +33,7 @@ export const invoiceService = {
     async getAll(): Promise<Invoice[]> {
         // 左连接获取客户名称
         // 注意：Access SQL 语法对于 limit/offset 或标准连接是标准的。
-        // 我们按 ID 倒序排列以优先显示最新的。
+        // 按 ID 倒序排列以优先显示最新的。
         const sql = `
             SELECT Invoices.*, Clients.Name as ClientName
             FROM Invoices
