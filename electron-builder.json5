@@ -1,8 +1,9 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.salesmanager.app",
   "asar": true,
+  "compression": "maximum",
+  "electronLanguages": ["en", "ja", "zh", "zh-CN", "zh-TW"],
   "productName": "Sales Manager",
   "directories": {
     "output": "release/${version}"
@@ -27,6 +28,12 @@
     "target": [
       {
         "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
+      {
+        "target": "portable",
         "arch": [
           "x64"
         ]
